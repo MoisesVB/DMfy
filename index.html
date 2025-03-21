@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMfy</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #000;
+            margin: 0;
+            padding: 0;
+            color: #fff;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 16px;
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 24px;
+            height: 100vh;
+            background-color: #000;
+        }
+
+        .left-column {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            height: calc(100vh - 32px);
+        }
+
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            height: calc(100vh - 32px);
+        }
+
+        .responses-section {
+            background: #111;
+            border-radius: 12px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            height: 300px;
+        }
+
+        .responses-list {
+            flex: 1;
+            overflow-y: auto;
+            margin: 0;
+            padding: 0;
+        }
+
+        .responses-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .responses-list::-webkit-scrollbar-track {
+            background: #111;
+        }
+
+        .responses-list::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        .responses-list::-webkit-scrollbar-thumb:hover {
+            background: #444;
+        }
+
+        .response-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #222;
+            gap: 8px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .response-item:hover {
+            background-color: #1a1a1a;
+        }
+
+        .response-item:last-child {
+            border-bottom: none;
+        }
+
+        .response-content {
+            flex: 1;
+            font-size: 14px;
+            color: #fff;
+        }
+
+        .response-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .response-btn {
+            background: none;
+            border: none;
+            color: #1DA1F2;
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            position: relative;
+            z-index: 1;
+        }
+
+        .response-btn:hover {
+            background-color: rgba(29, 161, 242, 0.1);
+        }
+
+        .response-btn .material-icons {
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .response-btn.copied .material-icons {
+            color: #1DA1F2;
+        }
+
+        .timer-section {
+            background: #111;
+            border-radius: 12px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            width: 100%;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            width: 100%;
+        }
+
+        .goal-section {
+            background: #111;
+            border-radius: 12px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .goal-circle {
+            position: relative;
+            width: 100px;
+            height: 100px;
+        }
+
+        .goal-circle svg {
+            transform: rotate(-90deg);
+            width: 100%;
+            height: 100%;
+        }
+
+        .goal-circle circle {
+            fill: none;
+            stroke-width: 4;
+            stroke-linecap: round;
+        }
+
+        .goal-circle circle.bg {
+            stroke: rgba(255, 255, 255, 0.1);
+        }
+
+        .goal-circle circle.progress {
+            stroke: #1DA1F2;
+            transition: stroke-dashoffset 0.3s ease;
+        }
+
+        .goal-number {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            font-weight: 600;
+            color: #1DA1F2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .goal-number small {
+            font-size: 12px;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .chart-section {
+            background: #111;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 200px;
+        }
+
+        .main-section {
+            background: #111;
+            border-radius: 12px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .section-header h1 {
+            margin-bottom: 0;
+        }
+
+        .pending-count {
+            color: #1DA1F2;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .notification {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            background: #1DA1F2;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            transform: translateY(-100%);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .timer-circle {
+            position: relative;
+            width: 100px;
+            height: 100px;
+        }
+
+        .timer-circle svg {
+            transform: rotate(-90deg);
+            width: 100%;
+            height: 100%;
+        }
+
+        .timer-circle circle {
+            fill: none;
+            stroke-width: 4;
+            stroke-linecap: round;
+        }
+
+        .timer-circle circle.bg {
+            stroke: rgba(255, 255, 255, 0.1);
+        }
+
+        .timer-circle circle.progress {
+            stroke: #1DA1F2;
+            transition: stroke-dashoffset 1s linear;
+        }
+
+        .timer-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            font-weight: 600;
+            color: #1DA1F2;
+        }
+
+        .timer-text {
+            font-size: 14px;
+            color: #666;
+            text-align: center;
+        }
+
+        .timer-card {
+            background: #222;
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .timer-card .material-icons {
+            color: #1DA1F2;
+        }
+
+        .timer-text {
+            font-size: 14px;
+            color: #fff;
+        }
+
+        .timer-value {
+            font-weight: 600;
+            color: #1DA1F2;
+        }
+
+        h1 {
+            color: #fff;
+            margin-bottom: 16px;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .input-section {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        input {
+            flex: 1;
+            padding: 10px 12px;
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #fff;
+            transition: all 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #1DA1F2;
+            background: #1a1a1a;
+        }
+
+        input::placeholder {
+            color: #666;
+        }
+
+        button {
+            background-color: #1DA1F2;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        button:disabled {
+            background-color: #333;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        button:not(:disabled):hover {
+            transform: translateY(-1px);
+        }
+
+        .task-list {
+            flex: 1;
+            overflow-y: auto;
+            margin: 0 -24px;
+            padding: 0 24px;
+        }
+
+        .task-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .task-list::-webkit-scrollbar-track {
+            background: #111;
+        }
+
+        .task-list::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        .task-list::-webkit-scrollbar-thumb:hover {
+            background: #444;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #222;
+            gap: 8px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .task-item:hover {
+            background-color: #1a1a1a;
+        }
+
+        .task-item:last-child {
+            border-bottom: none;
+        }
+
+        .task-item.hidden {
+            display: none;
+        }
+
+        .task-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #1DA1F2;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            background: #222;
+        }
+
+        .checkbox:hover {
+            background-color: #333;
+        }
+
+        .checkbox.checked {
+            background-color: #1DA1F2;
+        }
+
+        .checkbox.checked::after {
+            content: "✓";
+            color: white;
+            font-size: 12px;
+        }
+
+        .username {
+            font-size: 14px;
+            font-weight: 500;
+            color: #fff;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .task-item:hover .actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            color: #1DA1F2;
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            position: relative;
+            z-index: 1;
+        }
+
+        .action-btn:hover {
+            background-color: rgba(29, 161, 242, 0.1);
+        }
+
+        .action-btn .material-icons {
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .action-btn.copied .material-icons {
+            color: #1DA1F2;
+        }
+
+        .completed {
+            text-decoration: line-through;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="left-column">
+            <div class="timer-section">
+                <div class="timer-circle">
+                    <svg viewBox="0 0 36 36">
+                        <circle class="bg" cx="18" cy="18" r="16" />
+                        <circle class="progress" cx="18" cy="18" r="16" />
+                    </svg>
+                    <div class="timer-value" id="timerValue">5:00</div>
+                </div>
+                <div class="timer-text">Time remaining</div>
+            </div>
+            <div class="stats-row">
+                <div class="goal-section">
+                    <div class="goal-circle">
+                        <svg viewBox="0 0 36 36">
+                            <circle class="bg" cx="18" cy="18" r="16" />
+                            <circle class="progress" cx="18" cy="18" r="16" />
+                        </svg>
+                        <div class="goal-number">
+                            <span id="dmsCount">0</span>
+                            <small>/ 50</small>
+                        </div>
+                    </div>
+                    <div class="timer-text">DMs sent today</div>
+                </div>
+                <div class="goal-section">
+                    <div class="goal-circle">
+                        <svg viewBox="0 0 36 36">
+                            <circle class="bg" cx="18" cy="18" r="16" />
+                            <circle class="progress" cx="18" cy="18" r="16" />
+                        </svg>
+                        <div class="goal-number">
+                            <span id="totalDmsCount">0</span>
+                            <small>/ 1000</small>
+                        </div>
+                    </div>
+                    <div class="timer-text">Total DMs sent</div>
+                </div>
+            </div>
+            <div class="chart-section">
+                <div class="chart-container">
+                    <canvas id="weeklyChart"></canvas>
+                </div>
+                <div class="timer-text">Weekly activity</div>
+            </div>
+        </div>
+        <div class="right-column">
+            <div class="responses-section">
+                <h1>Responses</h1>
+                <div class="input-section">
+                    <input type="text" id="responseInput" placeholder="Enter default message" autocomplete="off">
+                    <button id="addResponseButton" onclick="addResponse()" disabled>Add</button>
+                </div>
+                <ul class="responses-list" id="responsesList"></ul>
+            </div>
+            <div class="main-section">
+                <div class="section-header">
+                    <h1>Pending</h1>
+                    <div class="pending-count" id="pendingCount">0 pending</div>
+                </div>
+                <div class="input-section">
+                    <input type="text" id="usernameInput" placeholder="Enter Twitter username" autocomplete="off">
+                    <button id="addButton" onclick="addUsername()" disabled>Add</button>
+                </div>
+                <ul class="task-list" id="taskList"></ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        let usernames = JSON.parse(localStorage.getItem('usernames')) || [];
+        let responses = JSON.parse(localStorage.getItem('responses')) || [];
+        let timerInterval;
+        let timeLeft = 300; // 5 minutes in seconds
+        let dmsCount = parseInt(localStorage.getItem('dmsCount')) || 0;
+        let totalDmsCount = parseInt(localStorage.getItem('totalDmsCount')) || 0;
+        let weeklyData = JSON.parse(localStorage.getItem('weeklyData')) || Array(7).fill(0);
+
+        const circle = document.querySelector('.timer-section .progress');
+        const goalCircle = document.querySelector('.goal-section:nth-child(1) .progress');
+        const totalGoalCircle = document.querySelector('.goal-section:nth-child(2) .progress');
+        const circumference = 2 * Math.PI * 16; // 2πr where r=16
+
+        // Initialize circles
+        circle.style.strokeDasharray = `${circumference} ${circumference}`;
+        goalCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+        totalGoalCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+
+        // Initialize Chart
+        const ctx = document.getElementById('weeklyChart').getContext('2d');
+        const weeklyChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+                datasets: [{
+                    label: 'DMs Sent',
+                    data: weeklyData,
+                    borderColor: '#1DA1F2',
+                    backgroundColor: 'rgba(29, 161, 242, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#1DA1F2',
+                    pointBorderColor: '#1DA1F2',
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: '#666'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: '#666'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Reset DMs count at midnight
+        const lastResetDate = localStorage.getItem('lastResetDate');
+        const today = new Date().toDateString();
+        if (lastResetDate !== today) {
+            if (lastResetDate) {
+                const lastDay = new Date(lastResetDate).getDay();
+                weeklyData[lastDay] = dmsCount;
+            }
+            dmsCount = 0;
+            const currentDay = new Date().getDay();
+            weeklyData[currentDay] = 0;
+
+            localStorage.setItem('lastResetDate', today);
+            localStorage.setItem('dmsCount', dmsCount);
+            localStorage.setItem('weeklyData', JSON.stringify(weeklyData));
+
+            weeklyChart.data.datasets[0].data = weeklyData;
+            weeklyChart.update();
+        }
+
+        function updateDMCount() {
+            document.getElementById('dmsCount').textContent = dmsCount;
+            document.getElementById('totalDmsCount').textContent = totalDmsCount;
+            localStorage.setItem('dmsCount', dmsCount);
+            localStorage.setItem('totalDmsCount', totalDmsCount);
+
+            // Update daily progress circle (capped at 100%)
+            const progress = Math.min(dmsCount / 50, 1);
+            const offset = circumference * (1 - progress);
+            goalCircle.style.strokeDashoffset = offset;
+
+            // Update total progress circle (capped at 100%)
+            const totalProgress = Math.min(totalDmsCount / 1000, 1);
+            const totalOffset = circumference * (1 - totalProgress);
+            totalGoalCircle.style.strokeDashoffset = totalOffset;
+
+            // Update chart for current day only
+            const currentDay = new Date().getDay();
+            weeklyData[currentDay] = dmsCount;
+            weeklyChart.data.datasets[0].data = weeklyData;
+            weeklyChart.update();
+            localStorage.setItem('weeklyData', JSON.stringify(weeklyData));
+        }
+
+        function saveUsernames() {
+            localStorage.setItem('usernames', JSON.stringify(usernames));
+        }
+
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        function addUsername() {
+            const input = document.getElementById('usernameInput');
+            let username = input.value.trim();
+
+            // Remove @ if present
+            if (username.startsWith('@')) {
+                username = username.substring(1);
+            }
+
+            if (username) {
+                if (usernames.some(u => u.username === username)) {
+                    showNotification('Username already exists');
+                    return;
+                }
+                usernames.unshift({
+                    username: username,
+                    checked: false
+                });
+                saveUsernames();
+                renderTasks();
+                input.value = '';
+                updateAddButton();
+            }
+        }
+
+        function toggleCheck(index) {
+            usernames[index].checked = !usernames[index].checked;
+            if (usernames[index].checked) {
+                startTimer();
+                dmsCount++;
+                totalDmsCount++;
+                updateDMCount();
+            }
+            saveUsernames();
+            renderTasks();
+        }
+
+        function copyUsername(username, button) {
+            navigator.clipboard.writeText(username);
+            const icon = button.querySelector('.material-icons');
+            icon.textContent = 'check';
+            button.classList.add('copied');
+
+            setTimeout(() => {
+                icon.textContent = 'content_copy';
+                button.classList.remove('copied');
+            }, 2000);
+        }
+
+        function deleteUsername(index) {
+            usernames.splice(index, 1);
+            saveUsernames();
+            renderTasks();
+        }
+
+        function updateAddButton() {
+            const input = document.getElementById('usernameInput');
+            const addButton = document.getElementById('addButton');
+            const username = input.value.trim();
+            addButton.disabled = !username;
+        }
+
+        function renderTasks() {
+            const taskList = document.getElementById('taskList');
+            const pendingCount = document.getElementById('pendingCount');
+            taskList.innerHTML = '';
+
+            let pending = 0;
+            usernames.forEach((item, index) => {
+                if (!item.checked) {
+                    pending++;
+                }
+
+                const li = document.createElement('li');
+                li.className = `task-item ${item.checked ? 'hidden' : ''}`;
+
+                li.innerHTML = `
+                    <div class="task-content">
+                        <div class="checkbox ${item.checked ? 'checked' : ''}" onclick="event.stopPropagation(); toggleCheck(${index})"></div>
+                        <span class="username ${item.checked ? 'completed' : ''}">@${item.username}</span>
+                    </div>
+                    <div class="actions">
+                        <button class="action-btn" onclick="event.stopPropagation(); copyUsername('${item.username}', this)" title="Copy">
+                            <span class="material-icons">content_copy</span>
+                        </button>
+                        <button class="action-btn" onclick="event.stopPropagation(); deleteUsername(${index})" title="Delete">
+                            <span class="material-icons">delete</span>
+                        </button>
+                    </div>
+                `;
+
+                li.addEventListener('click', () => {
+                    copyUsername(item.username, li.querySelector('.action-btn'));
+                });
+
+                taskList.appendChild(li);
+            });
+
+            pendingCount.textContent = `${pending} pending`;
+        }
+
+        function updateTimer() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            document.getElementById('timerValue').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+            // Update circle progress
+            const progress = timeLeft / 300;
+            const offset = circumference * (1 - progress);
+            circle.style.strokeDashoffset = offset;
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timeLeft = 300;
+            updateTimer();
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimer();
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    alert('Time is up! Check your DMs again!');
+                }
+            }, 1000);
+        }
+
+        function addResponse() {
+            const input = document.getElementById('responseInput');
+            const message = input.value.trim();
+
+            if (message && !responses.includes(message)) {
+                responses.unshift(message);
+                localStorage.setItem('responses', JSON.stringify(responses));
+                renderResponses();
+                input.value = '';
+                updateAddResponseButton();
+            }
+        }
+
+        function deleteResponse(index) {
+            responses.splice(index, 1);
+            localStorage.setItem('responses', JSON.stringify(responses));
+            renderResponses();
+        }
+
+        function copyResponse(message, button) {
+            navigator.clipboard.writeText(message);
+            const icon = button.querySelector('.material-icons');
+            icon.textContent = 'check';
+            button.classList.add('copied');
+
+            setTimeout(() => {
+                icon.textContent = 'content_copy';
+                button.classList.remove('copied');
+            }, 2000);
+        }
+
+        function renderResponses() {
+            const responsesList = document.getElementById('responsesList');
+            responsesList.innerHTML = '';
+
+            responses.forEach((message, index) => {
+                const li = document.createElement('li');
+                li.className = 'response-item';
+
+                li.innerHTML = `
+                    <div class="response-content">${message}</div>
+                    <div class="response-actions">
+                        <button class="response-btn" onclick="event.stopPropagation(); copyResponse('${message}', this)" title="Copy">
+                            <span class="material-icons">content_copy</span>
+                        </button>
+                        <button class="response-btn" onclick="event.stopPropagation(); deleteResponse(${index})" title="Delete">
+                            <span class="material-icons">delete</span>
+                        </button>
+                    </div>
+                `;
+
+                li.addEventListener('click', () => {
+                    copyResponse(message, li.querySelector('.response-btn'));
+                });
+
+                responsesList.appendChild(li);
+            });
+        }
+
+        function updateAddResponseButton() {
+            const input = document.getElementById('responseInput');
+            const addButton = document.getElementById('addResponseButton');
+            const message = input.value.trim();
+            addButton.disabled = !message;
+        }
+
+        // Initial updates
+        updateTimer();
+        updateDMCount();
+        renderTasks();
+        renderResponses();
+        updateAddButton();
+        updateAddResponseButton();
+
+        // Add event listeners
+        const usernameInput = document.getElementById('usernameInput');
+        const responseInput = document.getElementById('responseInput');
+        const addResponseButton = document.getElementById('addResponseButton');
+
+        usernameInput.addEventListener('input', updateAddButton);
+        usernameInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter' && this.value.trim()) {
+                e.preventDefault();
+                addUsername();
+            }
+        });
+
+        responseInput.addEventListener('input', updateAddResponseButton);
+        responseInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter' && this.value.trim()) {
+                e.preventDefault();
+                addResponse();
+            }
+        });
+
+        addResponseButton.addEventListener('click', addResponse);
+    </script>
+</body>
+
+</html>

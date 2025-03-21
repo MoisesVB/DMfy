@@ -1,0 +1,8 @@
+This is a simple twitter DM tracker for myself. Rules:
+
+- Everything goes into one file (index.html)
+- Do not comment out every JS function
+- The app has no routes, everything goes into root "/"
+- Accent color: #1DA1F2
+- Primary color: black
+- Font: System UI
