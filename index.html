@@ -184,6 +184,163 @@
             gap: 16px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
             width: 100%;
+            position: relative;
+        }
+
+        .settings-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            color: #1DA1F2;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .settings-btn:hover {
+            background-color: rgba(29, 161, 242, 0.1);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #111;
+            padding: 24px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .modal-header h2 {
+            color: #fff;
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .modal-body {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .input-group label {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .input-group input {
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 10px 12px;
+            color: #fff;
+            font-size: 14px;
+            transition: all 0.2s;
+            -moz-appearance: textfield;
+        }
+
+        .input-group input::-webkit-outer-spin-button,
+        .input-group input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #1DA1F2;
+            background: #1a1a1a;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .modal-footer button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .modal-footer button.cancel {
+            background: none;
+            border: 1px solid #333;
+            color: #666;
+        }
+
+        .modal-footer button.cancel:hover {
+            border-color: #666;
+            color: #fff;
+        }
+
+        .modal-footer button.save {
+            background: #1DA1F2;
+            border: none;
+            color: #fff;
+        }
+
+        .modal-footer button.save:hover {
+            transform: translateY(-1px);
         }
 
         .stats-row {
@@ -312,7 +469,7 @@
             transform: translateY(-100%);
             opacity: 0;
             transition: all 0.3s ease;
-            z-index: 1000;
+            z-index: 1001;
         }
 
         .notification.show {
@@ -668,6 +825,9 @@
     <div class="container">
         <div class="left-column">
             <div class="timer-section">
+                <button class="settings-btn" onclick="openTimerSettings()" title="Timer settings">
+                    <span class="material-icons">edit</span>
+                </button>
                 <div class="timer-circle">
                     <svg viewBox="0 0 36 36">
                         <circle class="bg" cx="18" cy="18" r="16" />
@@ -740,11 +900,33 @@
 
     <div class="notification" id="notification"></div>
 
+    <div class="modal" id="timerSettingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Timer Settings</h2>
+                <button class="modal-close" onclick="closeTimerSettings()">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="timerMinutes">Timer Duration (minutes)</label>
+                    <input type="number" id="timerMinutes" min="1" max="60" value="5">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="cancel" onclick="closeTimerSettings()">Cancel</button>
+                <button class="save" onclick="saveTimerSettings()">Save</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let usernames = JSON.parse(localStorage.getItem('usernames')) || [];
         let responses = JSON.parse(localStorage.getItem('responses')) || [];
         let timerInterval;
-        let timeLeft = 300; // 5 minutes in seconds
+        let timerDuration = parseInt(localStorage.getItem('timerDuration')) || 5; // Default timer duration in minutes
+        let timeLeft = timerDuration * 60; // Initialize timeLeft with stored duration
         let dmsCount = parseInt(localStorage.getItem('dmsCount')) || 0;
         let totalDmsCount = parseInt(localStorage.getItem('totalDmsCount')) || 0;
         let weeklyData = JSON.parse(localStorage.getItem('weeklyData')) || Array(7).fill(0);
@@ -759,6 +941,7 @@
         circle.style.strokeDasharray = `${circumference} ${circumference}`;
         goalCircle.style.strokeDasharray = `${circumference} ${circumference}`;
         totalGoalCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+        circle.style.strokeDashoffset = circumference; // Initialize timer circle
 
         // Initialize Chart
         const ctx = document.getElementById('weeklyChart').getContext('2d');
@@ -1068,7 +1251,7 @@
             }
 
             // Update circle progress
-            const progress = timeLeft / 300;
+            const progress = timeLeft / (timerDuration * 60);
             const offset = circumference * (1 - progress);
             if (circle) {
                 circle.style.strokeDashoffset = offset;
@@ -1077,7 +1260,7 @@
 
         function startTimer() {
             clearInterval(timerInterval);
-            timeLeft = 300;
+            timeLeft = timerDuration * 60;
             updateTimer();
 
             timerInterval = setInterval(() => {
@@ -1181,6 +1364,34 @@
             }).catch(() => {
                 showNotification('Failed to read clipboard');
             });
+        }
+
+        function openTimerSettings() {
+            const modal = document.getElementById('timerSettingsModal');
+            const input = document.getElementById('timerMinutes');
+            input.value = timerDuration;
+            modal.classList.add('show');
+        }
+
+        function closeTimerSettings() {
+            const modal = document.getElementById('timerSettingsModal');
+            modal.classList.remove('show');
+        }
+
+        function saveTimerSettings() {
+            const input = document.getElementById('timerMinutes');
+            const newDuration = parseInt(input.value);
+
+            if (newDuration >= 1 && newDuration <= 60) {
+                timerDuration = newDuration;
+                timeLeft = newDuration * 60;
+                localStorage.setItem('timerDuration', timerDuration);
+                updateTimer();
+                closeTimerSettings();
+                showNotification('Timer settings updated');
+            } else {
+                showNotification('Please enter a value between 1 and 60');
+            }
         }
 
         // Initial updates
