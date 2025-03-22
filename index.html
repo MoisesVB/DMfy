@@ -934,7 +934,13 @@
     <script>
         let usernames = JSON.parse(localStorage.getItem('usernames')) || [];
         let responses = JSON.parse(localStorage.getItem('responses')) || [];
-        let timerWorker = new Worker('timer-worker.js');
+        let timerWorker;
+        try {
+            timerWorker = new Worker('timer-worker.js');
+        } catch (error) {
+            console.error('Failed to create timer worker:', error);
+            showNotification('Timer functionality may be limited');
+        }
         let timerDuration = parseInt(localStorage.getItem('timerDuration')) || 5; // Default timer duration in minutes
         let timeLeft = timerDuration * 60; // Initialize timeLeft with stored duration
         let dmsCount = parseInt(localStorage.getItem('dmsCount')) || 0;
@@ -1044,18 +1050,25 @@
         }
 
         // Handle messages from the worker
-        timerWorker.onmessage = function (e) {
-            switch (e.data.type) {
-                case 'TIMER_UPDATE':
-                    timeLeft = e.data.timeLeft;
-                    updateTimerDisplay();
-                    break;
-                case 'TIMER_COMPLETE':
-                    document.title = 'DMfy'; // Reset title when timer ends
-                    showSystemNotification('Time is up!', 'Go send some DMs!');
-                    break;
-            }
-        };
+        if (timerWorker) {
+            timerWorker.onmessage = function (e) {
+                switch (e.data.type) {
+                    case 'TIMER_UPDATE':
+                        timeLeft = e.data.timeLeft;
+                        updateTimerDisplay();
+                        break;
+                    case 'TIMER_COMPLETE':
+                        document.title = 'DMfy'; // Reset title when timer ends
+                        showSystemNotification('Time is up!', 'Go send some DMs!');
+                        break;
+                }
+            };
+
+            timerWorker.onerror = function (error) {
+                console.error('Timer worker error:', error);
+                showNotification('Timer error occurred');
+            };
+        }
 
         function updateTimerDisplay() {
             const minutes = Math.floor(timeLeft / 60);
@@ -1077,6 +1090,8 @@
         }
 
         function startTimer() {
+            if (!timerWorker) return;
+
             // Get the latest duration from localStorage
             timerDuration = parseInt(localStorage.getItem('timerDuration')) || 5;
             timeLeft = timerDuration * 60;
@@ -1087,12 +1102,16 @@
         }
 
         function stopTimer() {
+            if (!timerWorker) return;
+
             timerWorker.postMessage({
                 type: 'STOP_TIMER'
             });
         }
 
         function saveTimerSettings() {
+            if (!timerWorker) return;
+
             const input = document.getElementById('timerMinutes');
             const newDuration = parseInt(input.value);
 
@@ -1114,7 +1133,9 @@
 
         // Clean up worker when page is unloaded
         window.addEventListener('beforeunload', () => {
-            timerWorker.terminate();
+            if (timerWorker) {
+                timerWorker.terminate();
+            }
         });
 
         // Initial updates
