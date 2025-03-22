@@ -91,23 +91,10 @@
             padding: 12px;
             border-bottom: 1px solid #222;
             gap: 8px;
-            transition: all 0.2s;
+            transition: all 0.3s ease;
             cursor: pointer;
             position: relative;
-        }
-
-        .response-item::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border: 1px solid transparent;
-            border-radius: 6px;
-            transition: all 0.2s;
-        }
-
-        .response-item.copied::before {
-            border-color: rgba(29, 161, 242, 0.3);
-            animation: outlineFade 1s ease-out forwards;
+            opacity: 1;
         }
 
         .response-item:hover {
@@ -123,10 +110,22 @@
             animation: backgroundFade 1s ease-out forwards;
         }
 
+        .response-item.copied::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border: 1px solid rgba(29, 161, 242, 0.3);
+            border-radius: 6px;
+            animation: outlineFade 1s ease-out forwards;
+            z-index: 1;
+        }
+
         .response-content {
             flex: 1;
             font-size: 14px;
             color: #fff;
+            position: relative;
+            z-index: 2;
         }
 
         .response-actions {
@@ -134,6 +133,8 @@
             gap: 8px;
             opacity: 0;
             transition: opacity 0.2s;
+            position: relative;
+            z-index: 2;
         }
 
         .response-item:hover .response-actions {
@@ -152,7 +153,7 @@
             justify-content: center;
             transition: all 0.2s;
             position: relative;
-            z-index: 1;
+            z-index: 3;
         }
 
         .response-btn:hover {
@@ -653,6 +654,15 @@
             animation: backgroundFade 1s ease-out forwards;
         }
 
+        .task-item.copied::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border: 1px solid rgba(29, 161, 242, 0.3);
+            border-radius: 6px;
+            animation: outlineFade 1s ease-out forwards;
+        }
+
         .task-content {
             flex: 1;
             display: flex;
@@ -931,6 +941,8 @@
         let totalDmsCount = parseInt(localStorage.getItem('totalDmsCount')) || 0;
         let weeklyData = JSON.parse(localStorage.getItem('weeklyData')) || Array(7).fill(0);
         let isProcessing = false; // Add processing flag
+        let timerStartTime = null; // Track when timer started
+        let animationFrameId = null; // Track animation frame
 
         const circle = document.querySelector('.timer-section .progress');
         const goalCircle = document.querySelector('.goal-section:nth-child(1) .progress');
@@ -945,13 +957,18 @@
 
         // Initialize Chart
         const ctx = document.getElementById('weeklyChart').getContext('2d');
+        const today = new Date().getDay();
+        const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const visibleLabels = labels.slice(0, today + 1);
+        const visibleData = weeklyData.slice(0, today + 1);
+
         const weeklyChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+                labels: visibleLabels,
                 datasets: [{
                     label: 'DMs Sent',
-                    data: weeklyData,
+                    data: visibleData,
                     borderColor: '#1DA1F2',
                     backgroundColor: 'rgba(29, 161, 242, 0.1)',
                     tension: 0.4,
@@ -1010,8 +1027,8 @@
 
         // Reset DMs count at midnight
         const lastResetDate = localStorage.getItem('lastResetDate');
-        const today = new Date().toDateString();
-        if (lastResetDate !== today) {
+        const todayDate = new Date().toDateString();
+        if (lastResetDate !== todayDate) {
             if (lastResetDate) {
                 const lastDay = new Date(lastResetDate).getDay();
                 weeklyData[lastDay] = dmsCount;
@@ -1020,7 +1037,7 @@
             const currentDay = new Date().getDay();
             weeklyData[currentDay] = 0;
 
-            localStorage.setItem('lastResetDate', today);
+            localStorage.setItem('lastResetDate', todayDate);
             localStorage.setItem('dmsCount', dmsCount);
             localStorage.setItem('weeklyData', JSON.stringify(weeklyData));
 
@@ -1055,7 +1072,8 @@
             // Update chart for current day only
             const currentDay = new Date().getDay();
             weeklyData[currentDay] = dmsCount;
-            weeklyChart.data.datasets[0].data = weeklyData;
+            weeklyChart.data.labels = labels.slice(0, currentDay + 1);
+            weeklyChart.data.datasets[0].data = weeklyData.slice(0, currentDay + 1);
             weeklyChart.update();
             localStorage.setItem('weeklyData', JSON.stringify(weeklyData));
         }
@@ -1243,6 +1261,28 @@
         }
 
         function updateTimer() {
+            if (!timerStartTime) {
+                // If timer hasn't started, just show the initial time
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                const timerValue = document.getElementById('timerValue');
+                if (timerValue) {
+                    timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                }
+
+                // Update circle progress
+                const progress = timeLeft / (timerDuration * 60);
+                const offset = circumference * (1 - progress);
+                if (circle) {
+                    circle.style.strokeDashoffset = offset;
+                }
+                return;
+            }
+
+            const currentTime = Date.now();
+            const elapsedTime = Math.floor((currentTime - timerStartTime) / 1000);
+            timeLeft = Math.max(0, (timerDuration * 60) - elapsedTime);
+
             const minutes = Math.floor(timeLeft / 60);
             const seconds = timeLeft % 60;
             const timerValue = document.getElementById('timerValue');
@@ -1256,23 +1296,57 @@
             if (circle) {
                 circle.style.strokeDashoffset = offset;
             }
+
+            if (timeLeft <= 0) {
+                cancelAnimationFrame(animationFrameId);
+                showSystemNotification('Time is up!', 'Check your DMs again!');
+            } else {
+                animationFrameId = requestAnimationFrame(updateTimer);
+            }
         }
 
         function startTimer() {
-            clearInterval(timerInterval);
+            // Get the latest duration from localStorage
+            timerDuration = parseInt(localStorage.getItem('timerDuration')) || 5;
+            timerStartTime = Date.now();
             timeLeft = timerDuration * 60;
             updateTimer();
-
-            timerInterval = setInterval(() => {
-                if (timeLeft > 0) {
-                    timeLeft--;
-                    updateTimer();
-                } else {
-                    clearInterval(timerInterval);
-                    alert('Time is up! Check your DMs again!');
-                }
-            }, 1000);
         }
+
+        function showSystemNotification(title, message) {
+            if (!("Notification" in window)) {
+                showNotification(message);
+                return;
+            }
+
+            if (Notification.permission === "granted") {
+                new Notification(title, {
+                    body: message,
+                    icon: 'favicon.svg'
+                });
+            } else if (Notification.permission !== "denied") {
+                Notification.requestPermission().then(function (permission) {
+                    if (permission === "granted") {
+                        new Notification(title, {
+                            body: message,
+                            icon: 'favicon.svg'
+                        });
+                    }
+                });
+            }
+        }
+
+        // Request notification permission when the page loads
+        if ("Notification" in window) {
+            Notification.requestPermission();
+        }
+
+        // Clean up animation frame when page is unloaded
+        window.addEventListener('beforeunload', () => {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+        });
 
         function addResponse() {
             const input = document.getElementById('responseInput');
@@ -1316,21 +1390,40 @@
                 const li = document.createElement('li');
                 li.className = 'response-item';
 
-                li.innerHTML = `
-                    <div class="response-content">${message}</div>
-                    <div class="response-actions">
-                        <button class="response-btn" onclick="event.stopPropagation(); copyResponse('${message}', this)" title="Copy">
-                            <span class="material-icons">content_copy</span>
-                        </button>
-                        <button class="response-btn" onclick="event.stopPropagation(); deleteResponse(${index})" title="Delete">
-                            <span class="material-icons">delete</span>
-                        </button>
-                    </div>
-                `;
+                const responseContent = document.createElement('div');
+                responseContent.className = 'response-content';
+                responseContent.textContent = message;
 
-                li.addEventListener('click', () => {
-                    copyResponse(message, li.querySelector('.response-btn'));
-                });
+                const actions = document.createElement('div');
+                actions.className = 'response-actions';
+
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'response-btn';
+                copyBtn.title = 'Copy';
+                copyBtn.innerHTML = '<span class="material-icons">content_copy</span>';
+                copyBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    copyResponse(message, copyBtn);
+                };
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'response-btn';
+                deleteBtn.title = 'Delete';
+                deleteBtn.innerHTML = '<span class="material-icons">delete</span>';
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteResponse(index);
+                };
+
+                actions.appendChild(copyBtn);
+                actions.appendChild(deleteBtn);
+
+                li.appendChild(responseContent);
+                li.appendChild(actions);
+
+                li.onclick = () => {
+                    copyResponse(message, copyBtn);
+                };
 
                 responsesList.appendChild(li);
             });
