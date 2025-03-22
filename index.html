@@ -57,14 +57,15 @@
             display: flex;
             flex-direction: column;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-            height: 300px;
+            height: 40%;
+            overflow: hidden;
         }
 
         .responses-list {
             flex: 1;
             overflow-y: auto;
-            margin: 0;
-            padding: 0;
+            margin: 0 -24px;
+            padding: 0 24px;
         }
 
         .responses-list::-webkit-scrollbar {
@@ -92,6 +93,21 @@
             gap: 8px;
             transition: all 0.2s;
             cursor: pointer;
+            position: relative;
+        }
+
+        .response-item::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .response-item.copied::before {
+            border-color: rgba(29, 161, 242, 0.3);
+            animation: outlineFade 1s ease-out forwards;
         }
 
         .response-item:hover {
@@ -100,6 +116,11 @@
 
         .response-item:last-child {
             border-bottom: none;
+        }
+
+        .response-item.copied {
+            background-color: rgba(29, 161, 242, 0.05);
+            animation: backgroundFade 1s ease-out forwards;
         }
 
         .response-content {
@@ -111,6 +132,12 @@
         .response-actions {
             display: flex;
             gap: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .response-item:hover .response-actions {
+            opacity: 1;
         }
 
         .response-btn {
@@ -135,6 +162,11 @@
         .response-btn .material-icons {
             font-size: 18px;
             transition: all 0.2s;
+        }
+
+        .response-btn.copied {
+            background-color: rgba(29, 161, 242, 0.05);
+            animation: backgroundFade 1s ease-out forwards;
         }
 
         .response-btn.copied .material-icons {
@@ -246,6 +278,7 @@
             flex: 1;
             overflow: hidden;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            height: 60%;
         }
 
         .section-header {
@@ -375,6 +408,8 @@
             font-size: 14px;
             color: #fff;
             transition: all 0.2s;
+            line-height: 1.5;
+            height: 40px;
         }
 
         input:focus {
@@ -385,6 +420,9 @@
 
         input::placeholder {
             color: #666;
+            line-height: 1.5;
+            display: flex;
+            align-items: center;
         }
 
         button {
@@ -439,20 +477,23 @@
             padding: 12px;
             border-bottom: 1px solid #222;
             gap: 8px;
-            transition: all 0.2s;
+            transition: all 0.3s ease;
             cursor: pointer;
+            position: relative;
+            opacity: 1;
         }
 
-        .task-item:hover {
-            background-color: #1a1a1a;
-        }
-
-        .task-item:last-child {
-            border-bottom: none;
+        .task-item.fade-out {
+            opacity: 0;
         }
 
         .task-item.hidden {
             display: none;
+        }
+
+        .task-item.copied {
+            background-color: rgba(29, 161, 242, 0.05);
+            animation: backgroundFade 1s ease-out forwards;
         }
 
         .task-content {
@@ -460,6 +501,20 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .username {
+            font-size: 14px;
+            font-weight: 500;
+            color: #fff;
+            transition: all 0.3s ease;
+        }
+
+        .username.completed {
+            text-decoration: line-through;
+            color: #666;
         }
 
         .checkbox {
@@ -471,12 +526,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s;
+            transition: all 0.3s ease;
             background: #222;
-        }
-
-        .checkbox:hover {
-            background-color: #333;
+            position: relative;
+            z-index: 3;
         }
 
         .checkbox.checked {
@@ -487,12 +540,21 @@
             content: "✓";
             color: white;
             font-size: 12px;
+            animation: checkmark 0.3s ease;
         }
 
-        .username {
-            font-size: 14px;
-            font-weight: 500;
-            color: #fff;
+        @keyframes checkmark {
+            0% {
+                transform: scale(0);
+            }
+
+            50% {
+                transform: scale(1.2);
+            }
+
+            100% {
+                transform: scale(1);
+            }
         }
 
         .actions {
@@ -500,6 +562,8 @@
             gap: 8px;
             opacity: 0;
             transition: opacity 0.2s;
+            position: relative;
+            z-index: 2;
         }
 
         .task-item:hover .actions {
@@ -530,13 +594,72 @@
             transition: all 0.2s;
         }
 
+        .action-btn.copied {
+            background-color: rgba(29, 161, 242, 0.05);
+            animation: backgroundFade 1s ease-out forwards;
+        }
+
         .action-btn.copied .material-icons {
             color: #1DA1F2;
         }
 
-        .completed {
-            text-decoration: line-through;
+        @keyframes outlineFade {
+            0% {
+                border-color: transparent;
+            }
+
+            20% {
+                border-color: rgba(29, 161, 242, 0.3);
+            }
+
+            100% {
+                border-color: transparent;
+            }
+        }
+
+        @keyframes backgroundFade {
+            0% {
+                background-color: transparent;
+            }
+
+            20% {
+                background-color: rgba(29, 161, 242, 0.05);
+            }
+
+            100% {
+                background-color: transparent;
+            }
+        }
+
+        .secondary-button {
+            background: none;
+            border: 1px solid #1DA1F2;
+            color: #1DA1F2;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            height: 40px;
+        }
+
+        .secondary-button .material-icons {
+            font-size: 20px;
+        }
+
+        .secondary-button:hover {
+            background-color: rgba(29, 161, 242, 0.1);
+        }
+
+        .secondary-button:disabled {
+            border-color: #333;
             color: #666;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -593,7 +716,7 @@
             <div class="responses-section">
                 <h1>Responses</h1>
                 <div class="input-section">
-                    <input type="text" id="responseInput" placeholder="Enter default message" autocomplete="off">
+                    <input type="text" id="responseInput" placeholder="Enter response" autocomplete="off">
                     <button id="addResponseButton" onclick="addResponse()" disabled>Add</button>
                 </div>
                 <ul class="responses-list" id="responsesList"></ul>
@@ -606,6 +729,9 @@
                 <div class="input-section">
                     <input type="text" id="usernameInput" placeholder="Enter Twitter username" autocomplete="off">
                     <button id="addButton" onclick="addUsername()" disabled>Add</button>
+                    <button id="pasteButton" onclick="pasteUsername()" class="secondary-button" title="Paste username">
+                        <span class="material-icons">content_paste</span>
+                    </button>
                 </div>
                 <ul class="task-list" id="taskList"></ul>
             </div>
@@ -622,6 +748,7 @@
         let dmsCount = parseInt(localStorage.getItem('dmsCount')) || 0;
         let totalDmsCount = parseInt(localStorage.getItem('totalDmsCount')) || 0;
         let weeklyData = JSON.parse(localStorage.getItem('weeklyData')) || Array(7).fill(0);
+        let isProcessing = false; // Add processing flag
 
         const circle = document.querySelector('.timer-section .progress');
         const goalCircle = document.querySelector('.goal-section:nth-child(1) .progress');
@@ -658,6 +785,22 @@
                 plugins: {
                     legend: {
                         display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(17, 17, 17, 0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        padding: 12,
+                        cornerRadius: 8,
+                        displayColors: false,
+                        callbacks: {
+                            title: function (tooltipItems) {
+                                return tooltipItems[0].label;
+                            },
+                            label: function (context) {
+                                return `${context.parsed.y} DMs`;
+                            }
+                        }
                     }
                 },
                 scales: {
@@ -703,20 +846,28 @@
         }
 
         function updateDMCount() {
-            document.getElementById('dmsCount').textContent = dmsCount;
-            document.getElementById('totalDmsCount').textContent = totalDmsCount;
+            const dmsCountElement = document.getElementById('dmsCount');
+            const totalDmsCountElement = document.getElementById('totalDmsCount');
+
+            if (dmsCountElement) dmsCountElement.textContent = dmsCount;
+            if (totalDmsCountElement) totalDmsCountElement.textContent = totalDmsCount;
+
             localStorage.setItem('dmsCount', dmsCount);
             localStorage.setItem('totalDmsCount', totalDmsCount);
 
             // Update daily progress circle (capped at 100%)
             const progress = Math.min(dmsCount / 50, 1);
             const offset = circumference * (1 - progress);
-            goalCircle.style.strokeDashoffset = offset;
+            if (goalCircle) {
+                goalCircle.style.strokeDashoffset = offset;
+            }
 
             // Update total progress circle (capped at 100%)
             const totalProgress = Math.min(totalDmsCount / 1000, 1);
             const totalOffset = circumference * (1 - totalProgress);
-            totalGoalCircle.style.strokeDashoffset = totalOffset;
+            if (totalGoalCircle) {
+                totalGoalCircle.style.strokeDashoffset = totalOffset;
+            }
 
             // Update chart for current day only
             const currentDay = new Date().getDay();
@@ -732,11 +883,13 @@
 
         function showNotification(message) {
             const notification = document.getElementById('notification');
-            notification.textContent = message;
-            notification.classList.add('show');
-            setTimeout(() => {
-                notification.classList.remove('show');
-            }, 3000);
+            if (notification) {
+                notification.textContent = message;
+                notification.classList.add('show');
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
         }
 
         function addUsername() {
@@ -765,27 +918,64 @@
         }
 
         function toggleCheck(index) {
-            usernames[index].checked = !usernames[index].checked;
-            if (usernames[index].checked) {
-                startTimer();
-                dmsCount++;
-                totalDmsCount++;
-                updateDMCount();
+            if (usernames[index].checked || isProcessing) {
+                return;
             }
-            saveUsernames();
-            renderTasks();
+
+            isProcessing = true; // Set processing flag
+
+            const taskItem = document.querySelector(`.task-item:nth-child(${index + 1})`);
+            if (taskItem) {
+                const checkbox = taskItem.querySelector('.checkbox');
+                const username = taskItem.querySelector('.username');
+
+                // First, add the checkmark and strikethrough
+                checkbox.classList.add('checked');
+                username.classList.add('completed');
+
+                // Then fade out after a short delay
+                setTimeout(() => {
+                    taskItem.classList.add('fade-out');
+
+                    // After fade out completes, update the state
+                    setTimeout(() => {
+                        usernames[index].checked = true;
+                        dmsCount++;
+                        totalDmsCount++;
+                        updateDMCount();
+
+                        if (dmsCount === 50) {
+                            clearInterval(timerInterval);
+                            timeLeft = 300; // Reset timer to 5 minutes
+                            updateTimer();
+                            showNotification('Daily goal reached!');
+                        } else if (dmsCount < 50) {
+                            startTimer();
+                        }
+
+                        saveUsernames();
+                        renderTasks();
+                        isProcessing = false; // Reset processing flag
+                    }, 300); // Match the CSS transition duration
+                }, 300); // Wait for checkmark and strikethrough to be visible
+            } else {
+                isProcessing = false; // Reset processing flag if item not found
+            }
         }
 
         function copyUsername(username, button) {
             navigator.clipboard.writeText(username);
             const icon = button.querySelector('.material-icons');
+            const item = button.closest('.task-item');
             icon.textContent = 'check';
             button.classList.add('copied');
+            item.classList.add('copied');
 
             setTimeout(() => {
                 icon.textContent = 'content_copy';
                 button.classList.remove('copied');
-            }, 2000);
+                item.classList.remove('copied');
+            }, 1500);
         }
 
         function deleteUsername(index) {
@@ -815,24 +1005,53 @@
                 const li = document.createElement('li');
                 li.className = `task-item ${item.checked ? 'hidden' : ''}`;
 
-                li.innerHTML = `
-                    <div class="task-content">
-                        <div class="checkbox ${item.checked ? 'checked' : ''}" onclick="event.stopPropagation(); toggleCheck(${index})"></div>
-                        <span class="username ${item.checked ? 'completed' : ''}">@${item.username}</span>
-                    </div>
-                    <div class="actions">
-                        <button class="action-btn" onclick="event.stopPropagation(); copyUsername('${item.username}', this)" title="Copy">
-                            <span class="material-icons">content_copy</span>
-                        </button>
-                        <button class="action-btn" onclick="event.stopPropagation(); deleteUsername(${index})" title="Delete">
-                            <span class="material-icons">delete</span>
-                        </button>
-                    </div>
-                `;
+                const taskContent = document.createElement('div');
+                taskContent.className = 'task-content';
 
-                li.addEventListener('click', () => {
-                    copyUsername(item.username, li.querySelector('.action-btn'));
-                });
+                const checkbox = document.createElement('div');
+                checkbox.className = `checkbox ${item.checked ? 'checked' : ''}`;
+                checkbox.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleCheck(index);
+                };
+
+                const username = document.createElement('span');
+                username.className = `username ${item.checked ? 'completed' : ''}`;
+                username.textContent = `@${item.username}`;
+
+                taskContent.appendChild(checkbox);
+                taskContent.appendChild(username);
+
+                const actions = document.createElement('div');
+                actions.className = 'actions';
+
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'action-btn';
+                copyBtn.title = 'Copy';
+                copyBtn.innerHTML = '<span class="material-icons">content_copy</span>';
+                copyBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    copyUsername(item.username, copyBtn);
+                };
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'action-btn';
+                deleteBtn.title = 'Delete';
+                deleteBtn.innerHTML = '<span class="material-icons">delete</span>';
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteUsername(index);
+                };
+
+                actions.appendChild(copyBtn);
+                actions.appendChild(deleteBtn);
+
+                li.appendChild(taskContent);
+                li.appendChild(actions);
+
+                li.onclick = () => {
+                    copyUsername(item.username, copyBtn);
+                };
 
                 taskList.appendChild(li);
             });
@@ -843,12 +1062,17 @@
         function updateTimer() {
             const minutes = Math.floor(timeLeft / 60);
             const seconds = timeLeft % 60;
-            document.getElementById('timerValue').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            const timerValue = document.getElementById('timerValue');
+            if (timerValue) {
+                timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
 
             // Update circle progress
             const progress = timeLeft / 300;
             const offset = circumference * (1 - progress);
-            circle.style.strokeDashoffset = offset;
+            if (circle) {
+                circle.style.strokeDashoffset = offset;
+            }
         }
 
         function startTimer() {
@@ -857,10 +1081,10 @@
             updateTimer();
 
             timerInterval = setInterval(() => {
-                timeLeft--;
-                updateTimer();
-
-                if (timeLeft <= 0) {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    updateTimer();
+                } else {
                     clearInterval(timerInterval);
                     alert('Time is up! Check your DMs again!');
                 }
@@ -889,13 +1113,16 @@
         function copyResponse(message, button) {
             navigator.clipboard.writeText(message);
             const icon = button.querySelector('.material-icons');
+            const item = button.closest('.response-item');
             icon.textContent = 'check';
             button.classList.add('copied');
+            item.classList.add('copied');
 
             setTimeout(() => {
                 icon.textContent = 'content_copy';
                 button.classList.remove('copied');
-            }, 2000);
+                item.classList.remove('copied');
+            }, 1500);
         }
 
         function renderResponses() {
@@ -933,6 +1160,29 @@
             addButton.disabled = !message;
         }
 
+        function pasteUsername() {
+            const input = document.getElementById('usernameInput');
+            navigator.clipboard.readText().then(text => {
+                const cleanUsername = text.trim().replace(/^@/, '');
+                if (cleanUsername) {
+                    if (usernames.some(u => u.username === cleanUsername)) {
+                        showNotification('Username already exists');
+                        return;
+                    }
+                    usernames.unshift({
+                        username: cleanUsername,
+                        checked: false
+                    });
+                    saveUsernames();
+                    renderTasks();
+                    input.value = '';
+                    updateAddButton();
+                }
+            }).catch(() => {
+                showNotification('Failed to read clipboard');
+            });
+        }
+
         // Initial updates
         updateTimer();
         updateDMCount();
@@ -951,6 +1201,26 @@
             if (e.key === 'Enter' && this.value.trim()) {
                 e.preventDefault();
                 addUsername();
+            }
+        });
+
+        usernameInput.addEventListener('paste', function (e) {
+            e.preventDefault();
+            const pastedText = e.clipboardData.getData('text');
+            const cleanUsername = pastedText.trim().replace(/^@/, '');
+            if (cleanUsername) {
+                if (usernames.some(u => u.username === cleanUsername)) {
+                    showNotification('Username already exists');
+                    return;
+                }
+                usernames.unshift({
+                    username: cleanUsername,
+                    checked: false
+                });
+                saveUsernames();
+                renderTasks();
+                this.value = '';
+                updateAddButton();
             }
         });
 
