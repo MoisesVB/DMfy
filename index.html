@@ -1276,6 +1276,9 @@
                 if (circle) {
                     circle.style.strokeDashoffset = offset;
                 }
+
+                // Update document title
+                document.title = `DMfy - ${minutes}:${seconds.toString().padStart(2, '0')}`;
                 return;
             }
 
@@ -1297,9 +1300,13 @@
                 circle.style.strokeDashoffset = offset;
             }
 
+            // Update document title
+            document.title = `DMfy - ${minutes}:${seconds.toString().padStart(2, '0')}`;
+
             if (timeLeft <= 0) {
                 cancelAnimationFrame(animationFrameId);
-                showSystemNotification('Time is up!', 'Check your DMs again!');
+                document.title = 'DMfy'; // Reset title when timer ends
+                showSystemNotification('Time is up!', 'Go send some DMs!');
             } else {
                 animationFrameId = requestAnimationFrame(updateTimer);
             }
@@ -1320,17 +1327,25 @@
             }
 
             if (Notification.permission === "granted") {
-                new Notification(title, {
+                const notification = new Notification(title, {
                     body: message,
                     icon: 'favicon.svg'
                 });
+
+                notification.onclick = function () {
+                    window.focus();
+                };
             } else if (Notification.permission !== "denied") {
                 Notification.requestPermission().then(function (permission) {
                     if (permission === "granted") {
-                        new Notification(title, {
+                        const notification = new Notification(title, {
                             body: message,
                             icon: 'favicon.svg'
                         });
+
+                        notification.onclick = function () {
+                            window.focus();
+                        };
                     }
                 });
             }
