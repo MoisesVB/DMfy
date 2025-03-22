@@ -953,6 +953,96 @@
         totalGoalCircle.style.strokeDasharray = `${circumference} ${circumference}`;
         circle.style.strokeDashoffset = circumference; // Initialize timer circle
 
+        // Initialize Chart
+        const ctx = document.getElementById('weeklyChart').getContext('2d');
+        const today = new Date().getDay();
+        const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const visibleLabels = labels.slice(0, today + 1);
+        const visibleData = weeklyData.slice(0, today + 1);
+
+        const weeklyChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: visibleLabels,
+                datasets: [{
+                    label: 'DMs Sent',
+                    data: visibleData,
+                    borderColor: '#1DA1F2',
+                    backgroundColor: 'rgba(29, 161, 242, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#1DA1F2',
+                    pointBorderColor: '#1DA1F2',
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(17, 17, 17, 0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        padding: 12,
+                        cornerRadius: 8,
+                        displayColors: false,
+                        callbacks: {
+                            title: function (tooltipItems) {
+                                return tooltipItems[0].label;
+                            },
+                            label: function (context) {
+                                return `${context.parsed.y} DMs`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: '#666'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: '#666'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Reset DMs count at midnight
+        const lastResetDate = localStorage.getItem('lastResetDate');
+        const todayDate = new Date().toDateString();
+        if (lastResetDate !== todayDate) {
+            if (lastResetDate) {
+                const lastDay = new Date(lastResetDate).getDay();
+                weeklyData[lastDay] = dmsCount;
+            }
+            dmsCount = 0;
+            const currentDay = new Date().getDay();
+            weeklyData[currentDay] = 0;
+
+            localStorage.setItem('lastResetDate', todayDate);
+            localStorage.setItem('dmsCount', dmsCount);
+            localStorage.setItem('weeklyData', JSON.stringify(weeklyData));
+
+            weeklyChart.data.datasets[0].data = weeklyData;
+            weeklyChart.update();
+        }
+
         // Handle messages from the worker
         timerWorker.onmessage = function (e) {
             switch (e.data.type) {
