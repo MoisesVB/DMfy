@@ -934,15 +934,13 @@
     <script>
         let usernames = JSON.parse(localStorage.getItem('usernames')) || [];
         let responses = JSON.parse(localStorage.getItem('responses')) || [];
-        let timerInterval;
+        let timerWorker = new Worker('timer-worker.js');
         let timerDuration = parseInt(localStorage.getItem('timerDuration')) || 5; // Default timer duration in minutes
         let timeLeft = timerDuration * 60; // Initialize timeLeft with stored duration
         let dmsCount = parseInt(localStorage.getItem('dmsCount')) || 0;
         let totalDmsCount = parseInt(localStorage.getItem('totalDmsCount')) || 0;
         let weeklyData = JSON.parse(localStorage.getItem('weeklyData')) || Array(7).fill(0);
         let isProcessing = false; // Add processing flag
-        let timerStartTime = null; // Track when timer started
-        let animationFrameId = null; // Track animation frame
 
         const circle = document.querySelector('.timer-section .progress');
         const goalCircle = document.querySelector('.goal-section:nth-child(1) .progress');
@@ -955,95 +953,87 @@
         totalGoalCircle.style.strokeDasharray = `${circumference} ${circumference}`;
         circle.style.strokeDashoffset = circumference; // Initialize timer circle
 
-        // Initialize Chart
-        const ctx = document.getElementById('weeklyChart').getContext('2d');
-        const today = new Date().getDay();
-        const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const visibleLabels = labels.slice(0, today + 1);
-        const visibleData = weeklyData.slice(0, today + 1);
-
-        const weeklyChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: visibleLabels,
-                datasets: [{
-                    label: 'DMs Sent',
-                    data: visibleData,
-                    borderColor: '#1DA1F2',
-                    backgroundColor: 'rgba(29, 161, 242, 0.1)',
-                    tension: 0.4,
-                    fill: true,
-                    pointBackgroundColor: '#1DA1F2',
-                    pointBorderColor: '#1DA1F2',
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(17, 17, 17, 0.9)',
-                        titleColor: '#fff',
-                        bodyColor: '#fff',
-                        padding: 12,
-                        cornerRadius: 8,
-                        displayColors: false,
-                        callbacks: {
-                            title: function (tooltipItems) {
-                                return tooltipItems[0].label;
-                            },
-                            label: function (context) {
-                                return `${context.parsed.y} DMs`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
-                        },
-                        ticks: {
-                            color: '#666'
-                        }
-                    },
-                    x: {
-                        grid: {
-                            display: false
-                        },
-                        ticks: {
-                            color: '#666'
-                        }
-                    }
-                }
+        // Handle messages from the worker
+        timerWorker.onmessage = function (e) {
+            switch (e.data.type) {
+                case 'TIMER_UPDATE':
+                    timeLeft = e.data.timeLeft;
+                    updateTimerDisplay();
+                    break;
+                case 'TIMER_COMPLETE':
+                    document.title = 'DMfy'; // Reset title when timer ends
+                    showSystemNotification('Time is up!', 'Go send some DMs!');
+                    break;
             }
+        };
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            const timerValue = document.getElementById('timerValue');
+            if (timerValue) {
+                timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+
+            // Update circle progress
+            const progress = timeLeft / (timerDuration * 60);
+            const offset = circumference * (1 - progress);
+            if (circle) {
+                circle.style.strokeDashoffset = offset;
+            }
+
+            // Update document title
+            document.title = `DMfy - ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function startTimer() {
+            // Get the latest duration from localStorage
+            timerDuration = parseInt(localStorage.getItem('timerDuration')) || 5;
+            timeLeft = timerDuration * 60;
+            timerWorker.postMessage({
+                type: 'START_TIMER',
+                duration: timerDuration
+            });
+        }
+
+        function stopTimer() {
+            timerWorker.postMessage({
+                type: 'STOP_TIMER'
+            });
+        }
+
+        function saveTimerSettings() {
+            const input = document.getElementById('timerMinutes');
+            const newDuration = parseInt(input.value);
+
+            if (newDuration >= 1 && newDuration <= 60) {
+                timerDuration = newDuration;
+                timeLeft = newDuration * 60;
+                localStorage.setItem('timerDuration', timerDuration);
+                timerWorker.postMessage({
+                    type: 'UPDATE_DURATION',
+                    duration: newDuration
+                });
+                updateTimerDisplay();
+                closeTimerSettings();
+                showNotification('Timer settings updated');
+            } else {
+                showNotification('Please enter a value between 1 and 60');
+            }
+        }
+
+        // Clean up worker when page is unloaded
+        window.addEventListener('beforeunload', () => {
+            timerWorker.terminate();
         });
 
-        // Reset DMs count at midnight
-        const lastResetDate = localStorage.getItem('lastResetDate');
-        const todayDate = new Date().toDateString();
-        if (lastResetDate !== todayDate) {
-            if (lastResetDate) {
-                const lastDay = new Date(lastResetDate).getDay();
-                weeklyData[lastDay] = dmsCount;
-            }
-            dmsCount = 0;
-            const currentDay = new Date().getDay();
-            weeklyData[currentDay] = 0;
-
-            localStorage.setItem('lastResetDate', todayDate);
-            localStorage.setItem('dmsCount', dmsCount);
-            localStorage.setItem('weeklyData', JSON.stringify(weeklyData));
-
-            weeklyChart.data.datasets[0].data = weeklyData;
-            weeklyChart.update();
-        }
+        // Initial updates
+        updateTimerDisplay();
+        updateDMCount();
+        renderTasks();
+        renderResponses();
+        updateAddButton();
+        updateAddResponseButton();
 
         function updateDMCount() {
             const dmsCountElement = document.getElementById('dmsCount');
@@ -1260,66 +1250,6 @@
             pendingCount.textContent = `${pending} pending`;
         }
 
-        function updateTimer() {
-            if (!timerStartTime) {
-                // If timer hasn't started, just show the initial time
-                const minutes = Math.floor(timeLeft / 60);
-                const seconds = timeLeft % 60;
-                const timerValue = document.getElementById('timerValue');
-                if (timerValue) {
-                    timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                }
-
-                // Update circle progress
-                const progress = timeLeft / (timerDuration * 60);
-                const offset = circumference * (1 - progress);
-                if (circle) {
-                    circle.style.strokeDashoffset = offset;
-                }
-
-                // Update document title
-                document.title = `DMfy - ${minutes}:${seconds.toString().padStart(2, '0')}`;
-                return;
-            }
-
-            const currentTime = Date.now();
-            const elapsedTime = Math.floor((currentTime - timerStartTime) / 1000);
-            timeLeft = Math.max(0, (timerDuration * 60) - elapsedTime);
-
-            const minutes = Math.floor(timeLeft / 60);
-            const seconds = timeLeft % 60;
-            const timerValue = document.getElementById('timerValue');
-            if (timerValue) {
-                timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-            }
-
-            // Update circle progress
-            const progress = timeLeft / (timerDuration * 60);
-            const offset = circumference * (1 - progress);
-            if (circle) {
-                circle.style.strokeDashoffset = offset;
-            }
-
-            // Update document title
-            document.title = `DMfy - ${minutes}:${seconds.toString().padStart(2, '0')}`;
-
-            if (timeLeft <= 0) {
-                cancelAnimationFrame(animationFrameId);
-                document.title = 'DMfy'; // Reset title when timer ends
-                showSystemNotification('Time is up!', 'Go send some DMs!');
-            } else {
-                animationFrameId = requestAnimationFrame(updateTimer);
-            }
-        }
-
-        function startTimer() {
-            // Get the latest duration from localStorage
-            timerDuration = parseInt(localStorage.getItem('timerDuration')) || 5;
-            timerStartTime = Date.now();
-            timeLeft = timerDuration * 60;
-            updateTimer();
-        }
-
         function showSystemNotification(title, message) {
             if (!("Notification" in window)) {
                 showNotification(message);
@@ -1486,24 +1416,8 @@
             modal.classList.remove('show');
         }
 
-        function saveTimerSettings() {
-            const input = document.getElementById('timerMinutes');
-            const newDuration = parseInt(input.value);
-
-            if (newDuration >= 1 && newDuration <= 60) {
-                timerDuration = newDuration;
-                timeLeft = newDuration * 60;
-                localStorage.setItem('timerDuration', timerDuration);
-                updateTimer();
-                closeTimerSettings();
-                showNotification('Timer settings updated');
-            } else {
-                showNotification('Please enter a value between 1 and 60');
-            }
-        }
-
         // Initial updates
-        updateTimer();
+        updateTimerDisplay();
         updateDMCount();
         renderTasks();
         renderResponses();
