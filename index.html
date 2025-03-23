@@ -421,10 +421,64 @@
             gap: 16px;
         }
 
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .chart-header h2 {
+            color: #fff;
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .chart-type-toggle {
+            display: flex;
+            gap: 8px;
+            background: #222;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .chart-type-btn {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            width: 32px;
+            height: 32px;
+        }
+
+        .chart-type-btn.active {
+            background: #1DA1F2;
+            color: #fff;
+        }
+
+        .chart-type-btn:hover {
+            color: #1DA1F2;
+        }
+
+        .chart-type-btn.active:hover {
+            color: #fff;
+        }
+
+        .chart-type-btn .material-icons {
+            font-size: 20px;
+        }
+
         .chart-container {
             position: relative;
             width: 100%;
-            height: 200px;
+            height: 160px;
         }
 
         .main-section {
@@ -876,10 +930,20 @@
                 </div>
             </div>
             <div class="chart-section">
+                <div class="chart-header">
+                    <h2>Weekly Activity</h2>
+                    <div class="chart-type-toggle">
+                        <button class="chart-type-btn active" onclick="toggleChartType('line')" title="Line Chart">
+                            <span class="material-icons">show_chart</span>
+                        </button>
+                        <button class="chart-type-btn" onclick="toggleChartType('bar')" title="Bar Chart">
+                            <span class="material-icons">bar_chart</span>
+                        </button>
+                    </div>
+                </div>
                 <div class="chart-container">
                     <canvas id="weeklyChart"></canvas>
                 </div>
-                <div class="timer-text">Weekly activity</div>
             </div>
         </div>
         <div class="right-column">
@@ -978,7 +1042,7 @@
                     label: 'DMs Sent',
                     data: reorderedData,
                     borderColor: '#1DA1F2',
-                    backgroundColor: 'rgba(29, 161, 242, 0.1)',
+                    backgroundColor: 'rgba(29, 161, 242, 0.2)',
                     tension: 0.4,
                     fill: true,
                     pointBackgroundColor: '#1DA1F2',
@@ -1018,7 +1082,9 @@
                             color: 'rgba(255, 255, 255, 0.1)'
                         },
                         ticks: {
-                            color: '#666'
+                            color: '#666',
+                            stepSize: 1,
+                            precision: 0
                         }
                     },
                     x: {
@@ -1032,6 +1098,29 @@
                 }
             }
         });
+
+        function toggleChartType(type) {
+            const lineBtn = document.querySelector('.chart-type-btn:nth-child(1)');
+            const barBtn = document.querySelector('.chart-type-btn:nth-child(2)');
+            
+            if (type === 'line') {
+                lineBtn.classList.add('active');
+                barBtn.classList.remove('active');
+                weeklyChart.config.type = 'line';
+                weeklyChart.config.data.datasets[0].tension = 0.4;
+                weeklyChart.config.data.datasets[0].fill = true;
+                weeklyChart.config.data.datasets[0].backgroundColor = 'rgba(29, 161, 242, 0.2)';
+            } else {
+                lineBtn.classList.remove('active');
+                barBtn.classList.add('active');
+                weeklyChart.config.type = 'bar';
+                weeklyChart.config.data.datasets[0].tension = 0;
+                weeklyChart.config.data.datasets[0].fill = false;
+                weeklyChart.config.data.datasets[0].backgroundColor = '#1DA1F2';
+            }
+            
+            weeklyChart.update();
+        }
 
         // Reset DMs count at midnight
         const lastResetDate = localStorage.getItem('lastResetDate');
