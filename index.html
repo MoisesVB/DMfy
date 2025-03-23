@@ -958,6 +958,8 @@
         goalCircle.style.strokeDasharray = `${circumference} ${circumference}`;
         totalGoalCircle.style.strokeDasharray = `${circumference} ${circumference}`;
         circle.style.strokeDashoffset = circumference; // Initialize timer circle
+        goalCircle.style.strokeDashoffset = circumference; // Initialize goal circle
+        totalGoalCircle.style.strokeDashoffset = circumference; // Initialize total goal circle
 
         // Initialize Chart
         const ctx = document.getElementById('weeklyChart').getContext('2d');
@@ -1161,6 +1163,9 @@
             const offset = circumference * (1 - progress);
             if (goalCircle) {
                 goalCircle.style.strokeDashoffset = offset;
+                if (progress >= 1) {
+                    goalCircle.style.strokeDashoffset = 0;
+                }
             }
 
             // Update total progress circle (capped at 100%)
@@ -1168,6 +1173,9 @@
             const totalOffset = circumference * (1 - totalProgress);
             if (totalGoalCircle) {
                 totalGoalCircle.style.strokeDashoffset = totalOffset;
+                if (totalProgress >= 1) {
+                    totalGoalCircle.style.strokeDashoffset = 0;
+                }
             }
 
             // Update chart for current day only
