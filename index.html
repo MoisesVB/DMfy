@@ -965,16 +965,18 @@
         const ctx = document.getElementById('weeklyChart').getContext('2d');
         const today = new Date().getDay();
         const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const visibleLabels = labels.slice(0, today + 1);
-        const visibleData = weeklyData.slice(0, today + 1);
+
+        // Reorder labels and data to show most recent day on the right
+        const reorderedLabels = [...labels.slice(today + 1), ...labels.slice(0, today + 1)];
+        const reorderedData = [...weeklyData.slice(today + 1), ...weeklyData.slice(0, today + 1)];
 
         const weeklyChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: visibleLabels,
+                labels: reorderedLabels,
                 datasets: [{
                     label: 'DMs Sent',
-                    data: visibleData,
+                    data: reorderedData,
                     borderColor: '#1DA1F2',
                     backgroundColor: 'rgba(29, 161, 242, 0.1)',
                     tension: 0.4,
@@ -1181,8 +1183,13 @@
             // Update chart for current day only
             const currentDay = new Date().getDay();
             weeklyData[currentDay] = dmsCount;
-            weeklyChart.data.labels = labels.slice(0, currentDay + 1);
-            weeklyChart.data.datasets[0].data = weeklyData.slice(0, currentDay + 1);
+
+            // Reorder data to show most recent day on the right
+            const updatedLabels = [...labels.slice(currentDay + 1), ...labels.slice(0, currentDay + 1)];
+            const updatedData = [...weeklyData.slice(currentDay + 1), ...weeklyData.slice(0, currentDay + 1)];
+
+            weeklyChart.data.labels = updatedLabels;
+            weeklyChart.data.datasets[0].data = updatedData;
             weeklyChart.update();
             localStorage.setItem('weeklyData', JSON.stringify(weeklyData));
         }
