@@ -1247,9 +1247,9 @@
                         updateDMCount();
 
                         if (dmsCount === 50) {
-                            clearInterval(timerInterval);
+                            stopTimer();
                             timeLeft = 300; // Reset timer to 5 minutes
-                            updateTimer();
+                            updateTimerDisplay();
                             showNotification('Daily goal reached!');
                         } else if (dmsCount < 50) {
                             startTimer();
@@ -1396,13 +1396,6 @@
         if ("Notification" in window) {
             Notification.requestPermission();
         }
-
-        // Clean up animation frame when page is unloaded
-        window.addEventListener('beforeunload', () => {
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-            }
-        });
 
         function addResponse() {
             const input = document.getElementById('responseInput');
