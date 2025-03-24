@@ -892,6 +892,89 @@
             color: #666;
             cursor: not-allowed;
         }
+
+        .secondary-button.export {
+            border-color: #1DA1F2;
+            color: #1DA1F2;
+            opacity: 0.8;
+        }
+
+        .secondary-button.export:hover {
+            opacity: 1;
+        }
+
+        .secondary-button.import {
+            border-color: #1DA1F2;
+            color: #1DA1F2;
+            opacity: 0.8;
+        }
+
+        .secondary-button.import:hover {
+            opacity: 1;
+        }
+
+        .add-btn {
+            background: #1DA1F2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 24px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .export-btn {
+            background: none;
+            border: none;
+            color: #1DA1F2;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+
+        .export-btn:hover {
+            background-color: rgba(29, 161, 242, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .export-btn .material-icons {
+            font-size: 20px;
+        }
+
+        .add-btn:hover,
+        .export-btn:hover {
+            background: #1a8cd8;
+            transform: translateY(-1px);
+        }
+
+        .input-group textarea {
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 10px 12px;
+            color: #fff;
+            font-size: 14px;
+            transition: all 0.2s;
+            resize: vertical;
+            min-height: 100px;
+            font-family: inherit;
+        }
+
+        .input-group textarea:focus {
+            outline: none;
+            border-color: #1DA1F2;
+            background: #1a1a1a;
+        }
     </style>
 </head>
 
@@ -958,10 +1041,19 @@
         </div>
         <div class="right-column">
             <div class="responses-section">
-                <h1>Responses</h1>
+                <div class="section-header">
+                    <h2>Saved Responses</h2>
+                </div>
                 <div class="input-section">
                     <input type="text" id="responseInput" placeholder="Enter response" autocomplete="off">
                     <button id="addResponseButton" onclick="addResponse()" disabled>Add</button>
+                    <button class="secondary-button export" onclick="exportResponses()" title="Export responses">
+                        <span class="material-icons">download</span>
+                    </button>
+                    <button class="secondary-button import" onclick="openImportResponsesModal()"
+                        title="Import responses">
+                        <span class="material-icons">upload</span>
+                    </button>
                 </div>
                 <ul class="responses-list" id="responsesList"></ul>
             </div>
@@ -975,6 +1067,14 @@
                     <button id="addButton" onclick="addUsername()" disabled>Add</button>
                     <button id="pasteButton" onclick="pasteUsername()" class="secondary-button" title="Paste username">
                         <span class="material-icons">content_paste</span>
+                    </button>
+                    <button class="secondary-button export" onclick="exportPendingUsernames()"
+                        title="Export pending usernames">
+                        <span class="material-icons">download</span>
+                    </button>
+                    <button class="secondary-button import" onclick="openImportUsernamesModal()"
+                        title="Import usernames">
+                        <span class="material-icons">upload</span>
                     </button>
                 </div>
                 <ul class="task-list" id="taskList"></ul>
@@ -1001,6 +1101,48 @@
             <div class="modal-footer">
                 <button class="cancel" onclick="closeTimerSettings()">Cancel</button>
                 <button class="save" onclick="saveTimerSettings()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="importUsernamesModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Import Usernames</h2>
+                <button class="modal-close" onclick="closeImportUsernamesModal()">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="importUsernamesText">Enter usernames (one per line)</label>
+                    <textarea id="importUsernamesText" rows="10" placeholder="Enter usernames here..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="cancel" onclick="closeImportUsernamesModal()">Cancel</button>
+                <button class="save" onclick="importUsernamesFromText()">Import</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="importResponsesModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Import Responses</h2>
+                <button class="modal-close" onclick="closeImportResponsesModal()">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="importResponsesText">Enter responses (one per line)</label>
+                    <textarea id="importResponsesText" rows="10" placeholder="Enter responses here..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="cancel" onclick="closeImportResponsesModal()">Cancel</button>
+                <button class="save" onclick="importResponsesFromText()">Import</button>
             </div>
         </div>
     </div>
@@ -1553,8 +1695,14 @@
             const pendingCount = document.getElementById('pendingCount');
             taskList.innerHTML = '';
 
+            // Sort usernames by most recent first (newest at the top)
+            const sortedUsernames = [...usernames].sort((a, b) => {
+                if (a.checked !== b.checked) return a.checked ? 1 : -1;
+                return b.id - a.id; // Sort by ID (newer IDs are higher)
+            });
+
             let pending = 0;
-            usernames.forEach((item, index) => {
+            sortedUsernames.forEach((item, index) => {
                 if (!item.checked) {
                     pending++;
                 }
@@ -1748,6 +1896,108 @@
             modal.classList.remove('show');
         }
 
+        function openImportUsernamesModal() {
+            const modal = document.getElementById('importUsernamesModal');
+            const textarea = document.getElementById('importUsernamesText');
+            textarea.value = '';
+            modal.classList.add('show');
+        }
+
+        function closeImportUsernamesModal() {
+            const modal = document.getElementById('importUsernamesModal');
+            modal.classList.remove('show');
+        }
+
+        function openImportResponsesModal() {
+            const modal = document.getElementById('importResponsesModal');
+            const textarea = document.getElementById('importResponsesText');
+            textarea.value = '';
+            modal.classList.add('show');
+        }
+
+        function closeImportResponsesModal() {
+            const modal = document.getElementById('importResponsesModal');
+            modal.classList.remove('show');
+        }
+
+        async function importUsernamesFromText() {
+            try {
+                const textarea = document.getElementById('importUsernamesText');
+                const text = textarea.value;
+                const usernames = text.split('\n')
+                    .map(u => u.trim())
+                    .filter(u => u && !u.startsWith('#'))
+                    .map(u => u.replace(/^@/, ''));
+
+                if (usernames.length === 0) {
+                    showNotification('No valid usernames found');
+                    return;
+                }
+
+                let added = 0;
+                let skipped = 0;
+
+                for (const username of usernames) {
+                    const existing = await db.usernames.where('username').equals(username).first();
+                    if (!existing) {
+                        await db.usernames.add({
+                            username,
+                            checked: false,
+                            completedAt: null
+                        });
+                        added++;
+                    } else {
+                        skipped++;
+                    }
+                }
+
+                await loadData();
+                closeImportUsernamesModal();
+                showNotification(`Imported ${added} usernames${skipped > 0 ? ` (${skipped} skipped)` : ''}`);
+            } catch (error) {
+                console.error('Error importing usernames:', error);
+                showNotification('Error importing usernames');
+            }
+        }
+
+        async function importResponsesFromText() {
+            try {
+                const textarea = document.getElementById('importResponsesText');
+                const text = textarea.value;
+                const responses = text.split('\n')
+                    .map(r => r.trim())
+                    .filter(r => r && !r.startsWith('#'));
+
+                if (responses.length === 0) {
+                    showNotification('No valid responses found');
+                    return;
+                }
+
+                let added = 0;
+                let skipped = 0;
+
+                for (const message of responses) {
+                    const existing = await db.responses.where('message').equals(message).first();
+                    if (!existing) {
+                        await db.responses.add({
+                            message,
+                            createdAt: new Date().toISOString()
+                        });
+                        added++;
+                    } else {
+                        skipped++;
+                    }
+                }
+
+                await loadData();
+                closeImportResponsesModal();
+                showNotification(`Imported ${added} responses${skipped > 0 ? ` (${skipped} skipped)` : ''}`);
+            } catch (error) {
+                console.error('Error importing responses:', error);
+                showNotification('Error importing responses');
+            }
+        }
+
         // Initial updates
         updateTimerDisplay();
         updateDMCount();
@@ -1866,6 +2116,41 @@
                 timerWorker.terminate();
             }
         });
+
+        async function exportPendingUsernames() {
+            try {
+                const pendingUsernames = usernames
+                    .filter(u => !u.checked)
+                    .sort((a, b) => b.id - a.id); // Sort by ID (newer IDs are higher)
+
+                if (pendingUsernames.length === 0) {
+                    showNotification('No pending usernames to export');
+                    return;
+                }
+
+                const text = pendingUsernames.map(u => u.username).join('\n');
+                await navigator.clipboard.writeText(text);
+                showNotification('Pending usernames copied to clipboard');
+            } catch (error) {
+                console.error('Error copying usernames:', error);
+                showNotification('Error copying usernames');
+            }
+        }
+
+        async function exportResponses() {
+            try {
+                const responses = await db.responses
+                    .orderBy('createdAt')
+                    .reverse()
+                    .toArray();
+                const text = responses.map(r => r.message).join('\n');
+                await navigator.clipboard.writeText(text);
+                showNotification('Responses copied to clipboard');
+            } catch (error) {
+                console.error('Error copying responses:', error);
+                showNotification('Error copying responses');
+            }
+        }
     </script>
 </body>
 
