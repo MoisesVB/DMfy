@@ -8,6 +8,16 @@
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <script>
+        const db = new Dexie('DMfyDB');
+        db.version(1).stores({
+            usernames: '++id, username, checked, completedAt',
+            responses: '++id, message, createdAt',
+            settings: 'id, value',
+            weeklyStats: '++id, date, count'
+        });
+    </script>
     <style>
         * {
             margin: 0;
@@ -996,8 +1006,8 @@
     </div>
 
     <script>
-        let usernames = JSON.parse(localStorage.getItem('usernames')) || [];
-        let responses = JSON.parse(localStorage.getItem('responses')) || [];
+        let usernames = [];
+        let responses = [];
         let timerWorker;
         try {
             timerWorker = new Worker('timer-worker.js');
@@ -1005,13 +1015,14 @@
             console.error('Failed to create timer worker:', error);
             showNotification('Timer functionality may be limited');
         }
-        let timerDuration = parseInt(localStorage.getItem('timerDuration')) || 5; // Default timer duration in minutes
-        let timeLeft = timerDuration * 60; // Initialize timeLeft with stored duration
-        let dmsCount = parseInt(localStorage.getItem('dmsCount')) || 0;
-        let totalDmsCount = parseInt(localStorage.getItem('totalDmsCount')) || 0;
-        let weeklyData = JSON.parse(localStorage.getItem('weeklyData')) || Array(7).fill(0);
-        let isProcessing = false; // Add processing flag
+        let timerDuration = 5; // Default timer duration in minutes
+        let timeLeft = timerDuration * 60;
+        let dmsCount = 0;
+        let totalDmsCount = 0;
+        let weeklyData = Array(7).fill(0);
+        let isProcessing = false;
 
+        // Initialize circles and chart
         const circle = document.querySelector('.timer-section .progress');
         const goalCircle = document.querySelector('.goal-section:nth-child(1) .progress');
         const totalGoalCircle = document.querySelector('.goal-section:nth-child(2) .progress');
@@ -1021,9 +1032,9 @@
         circle.style.strokeDasharray = `${circumference} ${circumference}`;
         goalCircle.style.strokeDasharray = `${circumference} ${circumference}`;
         totalGoalCircle.style.strokeDasharray = `${circumference} ${circumference}`;
-        circle.style.strokeDashoffset = circumference; // Initialize timer circle
-        goalCircle.style.strokeDashoffset = circumference; // Initialize goal circle
-        totalGoalCircle.style.strokeDashoffset = circumference; // Initialize total goal circle
+        circle.style.strokeDashoffset = circumference;
+        goalCircle.style.strokeDashoffset = circumference;
+        totalGoalCircle.style.strokeDashoffset = circumference;
 
         // Initialize Chart
         const ctx = document.getElementById('weeklyChart').getContext('2d');
@@ -1099,10 +1110,316 @@
             }
         });
 
+        // Initialize database and migrate data
+        async function initializeDatabase() {
+            try {
+                // Get settings from localStorage
+                const storedTimerDuration = localStorage.getItem('timerDuration');
+                if (storedTimerDuration) {
+                    await db.settings.put({ id: 'timerDuration', value: parseInt(storedTimerDuration) });
+                    timerDuration = parseInt(storedTimerDuration);
+                    timeLeft = timerDuration * 60;
+                }
+
+                // Get usernames from localStorage
+                const storedUsernames = JSON.parse(localStorage.getItem('usernames')) || [];
+                if (storedUsernames.length > 0) {
+                    await db.usernames.bulkAdd(storedUsernames.map(u => ({
+                        username: u.username,
+                        checked: u.checked,
+                        completedAt: u.checked ? new Date().toISOString() : null
+                    })));
+                }
+
+                // Get responses from localStorage
+                const storedResponses = JSON.parse(localStorage.getItem('responses')) || [];
+                if (storedResponses.length > 0) {
+                    await db.responses.bulkAdd(storedResponses.map(message => ({
+                        message,
+                        createdAt: new Date().toISOString()
+                    })));
+                }
+
+                // Get weekly data from localStorage
+                const storedWeeklyData = JSON.parse(localStorage.getItem('weeklyData')) || Array(7).fill(0);
+                if (storedWeeklyData.some(count => count > 0)) {
+                    const today = new Date();
+                    for (let i = 0; i < 7; i++) {
+                        const date = new Date(today);
+                        date.setDate(date.getDate() - (6 - i));
+                        await db.weeklyStats.add({
+                            date: date.toISOString().split('T')[0],
+                            count: storedWeeklyData[i]
+                        });
+                    }
+                }
+
+                // Clear localStorage after migration
+                localStorage.removeItem('usernames');
+                localStorage.removeItem('responses');
+                localStorage.removeItem('timerDuration');
+                localStorage.removeItem('weeklyData');
+
+                // Load data from IndexedDB
+                await loadData();
+            } catch (error) {
+                console.error('Error initializing database:', error);
+                showNotification('Error initializing database');
+            }
+        }
+
+        async function loadData() {
+            try {
+                // Load usernames
+                usernames = await db.usernames.toArray();
+
+                // Load responses
+                const responseRecords = await db.responses.toArray();
+                responses = responseRecords.map(r => r.message);
+
+                // Load timer duration
+                const timerSetting = await db.settings.get('timerDuration');
+                if (timerSetting) {
+                    timerDuration = timerSetting.value;
+                    timeLeft = timerDuration * 60;
+                }
+
+                // Load weekly stats
+                const today = new Date();
+                const weekStart = new Date(today);
+                weekStart.setDate(today.getDate() - 6);
+
+                const weeklyStats = await db.weeklyStats
+                    .where('date')
+                    .between(weekStart.toISOString().split('T')[0], today.toISOString().split('T')[0])
+                    .toArray();
+
+                weeklyData = Array(7).fill(0);
+                weeklyStats.forEach(stat => {
+                    const date = new Date(stat.date);
+                    const dayIndex = date.getDay();
+                    weeklyData[dayIndex] = stat.count;
+                });
+
+                // Calculate counts
+                dmsCount = usernames.filter(u => u.checked && isToday(new Date(u.completedAt))).length;
+                totalDmsCount = usernames.filter(u => u.checked).length;
+
+                // Update UI
+                updateTimerDisplay();
+                updateDMCount();
+                renderTasks();
+                renderResponses();
+                updateAddButton();
+                updateAddResponseButton();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                showNotification('Error loading data');
+            }
+        }
+
+        function isToday(date) {
+            const today = new Date();
+            return date.getDate() === today.getDate() &&
+                date.getMonth() === today.getMonth() &&
+                date.getFullYear() === today.getFullYear();
+        }
+
+        async function saveUsernames() {
+            try {
+                await db.usernames.clear();
+                await db.usernames.bulkAdd(usernames);
+            } catch (error) {
+                console.error('Error saving usernames:', error);
+                showNotification('Error saving usernames');
+            }
+        }
+
+        async function addUsername() {
+            const input = document.getElementById('usernameInput');
+            let username = input.value.trim();
+
+            if (username.startsWith('@')) {
+                username = username.substring(1);
+            }
+
+            if (username) {
+                const existing = await db.usernames.where('username').equals(username).first();
+                if (existing) {
+                    showNotification('Username already exists');
+                    return;
+                }
+
+                const newUsername = {
+                    username: username,
+                    checked: false,
+                    completedAt: null
+                };
+
+                await db.usernames.add(newUsername);
+                usernames.unshift(newUsername);
+                renderTasks();
+                input.value = '';
+                updateAddButton();
+            }
+        }
+
+        async function toggleCheck(index) {
+            if (usernames[index].checked || isProcessing) {
+                return;
+            }
+
+            isProcessing = true;
+
+            const taskItem = document.querySelector(`.task-item:nth-child(${index + 1})`);
+            if (taskItem) {
+                const checkbox = taskItem.querySelector('.checkbox');
+                const username = taskItem.querySelector('.username');
+
+                checkbox.classList.add('checked');
+                username.classList.add('completed');
+
+                setTimeout(() => {
+                    taskItem.classList.add('fade-out');
+
+                    setTimeout(async () => {
+                        const completedAt = new Date().toISOString();
+                        usernames[index].checked = true;
+                        usernames[index].completedAt = completedAt;
+
+                        await db.usernames.update(usernames[index].id, {
+                            checked: true,
+                            completedAt: completedAt
+                        });
+
+                        // Update weekly stats
+                        const today = new Date().toISOString().split('T')[0];
+                        const existingStat = await db.weeklyStats.where('date').equals(today).first();
+                        if (existingStat) {
+                            await db.weeklyStats.update(existingStat.id, {
+                                count: existingStat.count + 1
+                            });
+                        } else {
+                            await db.weeklyStats.add({
+                                date: today,
+                                count: 1
+                            });
+                        }
+
+                        dmsCount++;
+                        totalDmsCount++;
+                        updateDMCount();
+
+                        if (dmsCount === 50) {
+                            stopTimer();
+                            timeLeft = 300;
+                            updateTimerDisplay();
+                            showNotification('Daily goal reached!');
+                        } else if (dmsCount < 50) {
+                            startTimer();
+                        }
+
+                        renderTasks();
+                        isProcessing = false;
+                    }, 300);
+                }, 300);
+            } else {
+                isProcessing = false;
+            }
+        }
+
+        async function deleteUsername(index) {
+            try {
+                await db.usernames.delete(usernames[index].id);
+                usernames.splice(index, 1);
+                renderTasks();
+            } catch (error) {
+                console.error('Error deleting username:', error);
+                showNotification('Error deleting username');
+            }
+        }
+
+        async function addResponse() {
+            const input = document.getElementById('responseInput');
+            const message = input.value.trim();
+
+            if (message) {
+                const existing = await db.responses.where('message').equals(message).first();
+                if (existing) {
+                    showNotification('Response already exists');
+                    return;
+                }
+
+                const newResponse = {
+                    message,
+                    createdAt: new Date().toISOString()
+                };
+
+                await db.responses.add(newResponse);
+                responses.unshift(message);
+                renderResponses();
+                input.value = '';
+                updateAddResponseButton();
+            }
+        }
+
+        async function deleteResponse(index) {
+            try {
+                const response = await db.responses.where('message').equals(responses[index]).first();
+                if (response) {
+                    await db.responses.delete(response.id);
+                    responses.splice(index, 1);
+                    renderResponses();
+                }
+            } catch (error) {
+                console.error('Error deleting response:', error);
+                showNotification('Error deleting response');
+            }
+        }
+
+        async function saveTimerSettings() {
+            if (!timerWorker) return;
+
+            const input = document.getElementById('timerMinutes');
+            const newDuration = parseInt(input.value);
+
+            if (newDuration >= 1 && newDuration <= 60) {
+                timerDuration = newDuration;
+                timeLeft = newDuration * 60;
+
+                try {
+                    await db.settings.put({
+                        id: 'timerDuration',
+                        value: newDuration
+                    });
+
+                    timerWorker.postMessage({
+                        type: 'UPDATE_DURATION',
+                        duration: newDuration
+                    });
+
+                    updateTimerDisplay();
+                    closeTimerSettings();
+                    showNotification('Timer settings updated');
+                } catch (error) {
+                    console.error('Error saving timer settings:', error);
+                    showNotification('Error saving timer settings');
+                }
+            } else {
+                showNotification('Please enter a value between 1 and 60');
+            }
+        }
+
+        // Initialize the application
+        initializeDatabase().catch(error => {
+            console.error('Error initializing application:', error);
+            showNotification('Error initializing application');
+        });
+
         function toggleChartType(type) {
             const lineBtn = document.querySelector('.chart-type-btn:nth-child(1)');
             const barBtn = document.querySelector('.chart-type-btn:nth-child(2)');
-            
+
             if (type === 'line') {
                 lineBtn.classList.add('active');
                 barBtn.classList.remove('active');
@@ -1118,49 +1435,8 @@
                 weeklyChart.config.data.datasets[0].fill = false;
                 weeklyChart.config.data.datasets[0].backgroundColor = '#1DA1F2';
             }
-            
+
             weeklyChart.update();
-        }
-
-        // Reset DMs count at midnight
-        const lastResetDate = localStorage.getItem('lastResetDate');
-        const todayDate = new Date().toDateString();
-        if (lastResetDate !== todayDate) {
-            if (lastResetDate) {
-                const lastDay = new Date(lastResetDate).getDay();
-                weeklyData[lastDay] = dmsCount;
-            }
-            dmsCount = 0;
-            const currentDay = new Date().getDay();
-            weeklyData[currentDay] = 0;
-
-            localStorage.setItem('lastResetDate', todayDate);
-            localStorage.setItem('dmsCount', dmsCount);
-            localStorage.setItem('weeklyData', JSON.stringify(weeklyData));
-
-            weeklyChart.data.datasets[0].data = weeklyData;
-            weeklyChart.update();
-        }
-
-        // Handle messages from the worker
-        if (timerWorker) {
-            timerWorker.onmessage = function (e) {
-                switch (e.data.type) {
-                    case 'TIMER_UPDATE':
-                        timeLeft = e.data.timeLeft;
-                        updateTimerDisplay();
-                        break;
-                    case 'TIMER_COMPLETE':
-                        document.title = 'DMfy'; // Reset title when timer ends
-                        showSystemNotification('Time is up!', 'Go send some DMs!');
-                        break;
-                }
-            };
-
-            timerWorker.onerror = function (error) {
-                console.error('Timer worker error:', error);
-                showNotification('Timer error occurred');
-            };
         }
 
         function updateTimerDisplay() {
@@ -1185,9 +1461,6 @@
         function startTimer() {
             if (!timerWorker) return;
 
-            // Get the latest duration from localStorage
-            timerDuration = parseInt(localStorage.getItem('timerDuration')) || 5;
-            timeLeft = timerDuration * 60;
             timerWorker.postMessage({
                 type: 'START_TIMER',
                 duration: timerDuration
@@ -1201,43 +1474,6 @@
                 type: 'STOP_TIMER'
             });
         }
-
-        function saveTimerSettings() {
-            if (!timerWorker) return;
-
-            const input = document.getElementById('timerMinutes');
-            const newDuration = parseInt(input.value);
-
-            if (newDuration >= 1 && newDuration <= 60) {
-                timerDuration = newDuration;
-                timeLeft = newDuration * 60;
-                localStorage.setItem('timerDuration', timerDuration);
-                timerWorker.postMessage({
-                    type: 'UPDATE_DURATION',
-                    duration: newDuration
-                });
-                updateTimerDisplay();
-                closeTimerSettings();
-                showNotification('Timer settings updated');
-            } else {
-                showNotification('Please enter a value between 1 and 60');
-            }
-        }
-
-        // Clean up worker when page is unloaded
-        window.addEventListener('beforeunload', () => {
-            if (timerWorker) {
-                timerWorker.terminate();
-            }
-        });
-
-        // Initial updates
-        updateTimerDisplay();
-        updateDMCount();
-        renderTasks();
-        renderResponses();
-        updateAddButton();
-        updateAddResponseButton();
 
         function updateDMCount() {
             const dmsCountElement = document.getElementById('dmsCount');
@@ -1283,10 +1519,6 @@
             localStorage.setItem('weeklyData', JSON.stringify(weeklyData));
         }
 
-        function saveUsernames() {
-            localStorage.setItem('usernames', JSON.stringify(usernames));
-        }
-
         function showNotification(message) {
             const notification = document.getElementById('notification');
             if (notification) {
@@ -1296,98 +1528,6 @@
                     notification.classList.remove('show');
                 }, 3000);
             }
-        }
-
-        function addUsername() {
-            const input = document.getElementById('usernameInput');
-            let username = input.value.trim();
-
-            // Remove @ if present
-            if (username.startsWith('@')) {
-                username = username.substring(1);
-            }
-
-            if (username) {
-                if (usernames.some(u => u.username === username)) {
-                    showNotification('Username already exists');
-                    return;
-                }
-                usernames.unshift({
-                    username: username,
-                    checked: false
-                });
-                saveUsernames();
-                renderTasks();
-                input.value = '';
-                updateAddButton();
-            }
-        }
-
-        function toggleCheck(index) {
-            if (usernames[index].checked || isProcessing) {
-                return;
-            }
-
-            isProcessing = true; // Set processing flag
-
-            const taskItem = document.querySelector(`.task-item:nth-child(${index + 1})`);
-            if (taskItem) {
-                const checkbox = taskItem.querySelector('.checkbox');
-                const username = taskItem.querySelector('.username');
-
-                // First, add the checkmark and strikethrough
-                checkbox.classList.add('checked');
-                username.classList.add('completed');
-
-                // Then fade out after a short delay
-                setTimeout(() => {
-                    taskItem.classList.add('fade-out');
-
-                    // After fade out completes, update the state
-                    setTimeout(() => {
-                        usernames[index].checked = true;
-                        dmsCount++;
-                        totalDmsCount++;
-                        updateDMCount();
-
-                        if (dmsCount === 50) {
-                            stopTimer();
-                            timeLeft = 300; // Reset timer to 5 minutes
-                            updateTimerDisplay();
-                            showNotification('Daily goal reached!');
-                        } else if (dmsCount < 50) {
-                            startTimer();
-                        }
-
-                        saveUsernames();
-                        renderTasks();
-                        isProcessing = false; // Reset processing flag
-                    }, 300); // Match the CSS transition duration
-                }, 300); // Wait for checkmark and strikethrough to be visible
-            } else {
-                isProcessing = false; // Reset processing flag if item not found
-            }
-        }
-
-        function copyUsername(username, button) {
-            navigator.clipboard.writeText(username);
-            const icon = button.querySelector('.material-icons');
-            const item = button.closest('.task-item');
-            icon.textContent = 'check';
-            button.classList.add('copied');
-            item.classList.add('copied');
-
-            setTimeout(() => {
-                icon.textContent = 'content_copy';
-                button.classList.remove('copied');
-                item.classList.remove('copied');
-            }, 1500);
-        }
-
-        function deleteUsername(index) {
-            usernames.splice(index, 1);
-            saveUsernames();
-            renderTasks();
         }
 
         function updateAddButton() {
@@ -1501,40 +1641,6 @@
             Notification.requestPermission();
         }
 
-        function addResponse() {
-            const input = document.getElementById('responseInput');
-            const message = input.value.trim();
-
-            if (message && !responses.includes(message)) {
-                responses.unshift(message);
-                localStorage.setItem('responses', JSON.stringify(responses));
-                renderResponses();
-                input.value = '';
-                updateAddResponseButton();
-            }
-        }
-
-        function deleteResponse(index) {
-            responses.splice(index, 1);
-            localStorage.setItem('responses', JSON.stringify(responses));
-            renderResponses();
-        }
-
-        function copyResponse(message, button) {
-            navigator.clipboard.writeText(message);
-            const icon = button.querySelector('.material-icons');
-            const item = button.closest('.response-item');
-            icon.textContent = 'check';
-            button.classList.add('copied');
-            item.classList.add('copied');
-
-            setTimeout(() => {
-                icon.textContent = 'content_copy';
-                button.classList.remove('copied');
-                item.classList.remove('copied');
-            }, 1500);
-        }
-
         function renderResponses() {
             const responsesList = document.getElementById('responsesList');
             responsesList.innerHTML = '';
@@ -1589,27 +1695,34 @@
             addButton.disabled = !message;
         }
 
-        function pasteUsername() {
+        async function pasteUsername() {
             const input = document.getElementById('usernameInput');
-            navigator.clipboard.readText().then(text => {
+            try {
+                const text = await navigator.clipboard.readText();
                 const cleanUsername = text.trim().replace(/^@/, '');
                 if (cleanUsername) {
-                    if (usernames.some(u => u.username === cleanUsername)) {
+                    const existing = await db.usernames.where('username').equals(cleanUsername).first();
+                    if (existing) {
                         showNotification('Username already exists');
                         return;
                     }
-                    usernames.unshift({
+
+                    const newUsername = {
                         username: cleanUsername,
-                        checked: false
-                    });
-                    saveUsernames();
+                        checked: false,
+                        completedAt: null
+                    };
+
+                    await db.usernames.add(newUsername);
+                    usernames.unshift(newUsername);
                     renderTasks();
                     input.value = '';
                     updateAddButton();
                 }
-            }).catch(() => {
+            } catch (error) {
+                console.error('Error pasting username:', error);
                 showNotification('Failed to read clipboard');
-            });
+            }
         }
 
         function openTimerSettings() {
@@ -1645,23 +1758,33 @@
             }
         });
 
-        usernameInput.addEventListener('paste', function (e) {
+        usernameInput.addEventListener('paste', async function (e) {
             e.preventDefault();
-            const pastedText = e.clipboardData.getData('text');
-            const cleanUsername = pastedText.trim().replace(/^@/, '');
-            if (cleanUsername) {
-                if (usernames.some(u => u.username === cleanUsername)) {
-                    showNotification('Username already exists');
-                    return;
+            try {
+                const pastedText = e.clipboardData.getData('text');
+                const cleanUsername = pastedText.trim().replace(/^@/, '');
+                if (cleanUsername) {
+                    const existing = await db.usernames.where('username').equals(cleanUsername).first();
+                    if (existing) {
+                        showNotification('Username already exists');
+                        return;
+                    }
+
+                    const newUsername = {
+                        username: cleanUsername,
+                        checked: false,
+                        completedAt: null
+                    };
+
+                    await db.usernames.add(newUsername);
+                    usernames.unshift(newUsername);
+                    renderTasks();
+                    this.value = '';
+                    updateAddButton();
                 }
-                usernames.unshift({
-                    username: cleanUsername,
-                    checked: false
-                });
-                saveUsernames();
-                renderTasks();
-                this.value = '';
-                updateAddButton();
+            } catch (error) {
+                console.error('Error pasting username:', error);
+                showNotification('Failed to paste username');
             }
         });
 
@@ -1674,6 +1797,64 @@
         });
 
         addResponseButton.addEventListener('click', addResponse);
+
+        function copyUsername(username, button) {
+            navigator.clipboard.writeText(username);
+            const icon = button.querySelector('.material-icons');
+            const item = button.closest('.task-item');
+            icon.textContent = 'check';
+            button.classList.add('copied');
+            item.classList.add('copied');
+
+            setTimeout(() => {
+                icon.textContent = 'content_copy';
+                button.classList.remove('copied');
+                item.classList.remove('copied');
+            }, 1500);
+        }
+
+        function copyResponse(message, button) {
+            navigator.clipboard.writeText(message);
+            const icon = button.querySelector('.material-icons');
+            const item = button.closest('.response-item');
+            icon.textContent = 'check';
+            button.classList.add('copied');
+            item.classList.add('copied');
+
+            setTimeout(() => {
+                icon.textContent = 'content_copy';
+                button.classList.remove('copied');
+                item.classList.remove('copied');
+            }, 1500);
+        }
+
+        // Handle messages from the worker
+        if (timerWorker) {
+            timerWorker.onmessage = function (e) {
+                switch (e.data.type) {
+                    case 'TIMER_UPDATE':
+                        timeLeft = e.data.timeLeft;
+                        updateTimerDisplay();
+                        break;
+                    case 'TIMER_COMPLETE':
+                        document.title = 'DMfy'; // Reset title when timer ends
+                        showSystemNotification('Time is up!', 'Go send some DMs!');
+                        break;
+                }
+            };
+
+            timerWorker.onerror = function (error) {
+                console.error('Timer worker error:', error);
+                showNotification('Timer error occurred');
+            };
+        }
+
+        // Clean up worker when page is unloaded
+        window.addEventListener('beforeunload', () => {
+            if (timerWorker) {
+                timerWorker.terminate();
+            }
+        });
     </script>
 </body>
 
