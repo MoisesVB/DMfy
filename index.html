@@ -1413,30 +1413,31 @@
             }
         }
 
-        async function toggleCheck(index) {
-            if (usernames[index].checked || isProcessing) {
+        async function toggleCheck(id) {
+            const username = usernames.find(u => u.id === id);
+            if (!username || username.checked || isProcessing) {
                 return;
             }
 
             isProcessing = true;
 
-            const taskItem = document.querySelector(`.task-item:nth-child(${index + 1})`);
+            const taskItem = document.querySelector(`.task-item[data-id="${id}"]`);
             if (taskItem) {
                 const checkbox = taskItem.querySelector('.checkbox');
-                const username = taskItem.querySelector('.username');
+                const usernameElement = taskItem.querySelector('.username');
 
                 checkbox.classList.add('checked');
-                username.classList.add('completed');
+                usernameElement.classList.add('completed');
 
                 setTimeout(() => {
                     taskItem.classList.add('fade-out');
 
                     setTimeout(async () => {
                         const completedAt = new Date().toISOString();
-                        usernames[index].checked = true;
-                        usernames[index].completedAt = completedAt;
+                        username.checked = true;
+                        username.completedAt = completedAt;
 
-                        await db.usernames.update(usernames[index].id, {
+                        await db.usernames.update(id, {
                             checked: true,
                             completedAt: completedAt
                         });
@@ -1477,10 +1478,13 @@
             }
         }
 
-        async function deleteUsername(index) {
+        async function deleteUsername(id) {
             try {
-                await db.usernames.delete(usernames[index].id);
-                usernames.splice(index, 1);
+                await db.usernames.delete(id);
+                const index = usernames.findIndex(u => u.id === id);
+                if (index !== -1) {
+                    usernames.splice(index, 1);
+                }
                 renderTasks();
             } catch (error) {
                 console.error('Error deleting username:', error);
@@ -1702,13 +1706,14 @@
             });
 
             let pending = 0;
-            sortedUsernames.forEach((item, index) => {
+            sortedUsernames.forEach((item) => {
                 if (!item.checked) {
                     pending++;
                 }
 
                 const li = document.createElement('li');
                 li.className = `task-item ${item.checked ? 'hidden' : ''}`;
+                li.dataset.id = item.id; // Store the database ID in the DOM
 
                 const taskContent = document.createElement('div');
                 taskContent.className = 'task-content';
@@ -1717,7 +1722,7 @@
                 checkbox.className = `checkbox ${item.checked ? 'checked' : ''}`;
                 checkbox.onclick = (e) => {
                     e.stopPropagation();
-                    toggleCheck(index);
+                    toggleCheck(item.id); // Pass the ID instead of index
                 };
 
                 const username = document.createElement('span');
@@ -1745,7 +1750,7 @@
                 deleteBtn.innerHTML = '<span class="material-icons">delete</span>';
                 deleteBtn.onclick = (e) => {
                     e.stopPropagation();
-                    deleteUsername(index);
+                    deleteUsername(item.id); // Pass the ID instead of index
                 };
 
                 actions.appendChild(copyBtn);
