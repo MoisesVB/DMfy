@@ -1103,7 +1103,7 @@
             <div class="main-section">
                 <div class="section-header">
                     <div class="title-group">
-                        <h1>Pending</h1>
+                        <h1><span id="pendingCount"></span>Pending</h1>
                         <div class="action-buttons">
                             <button class="action-btn" onclick="pasteUsername()" title="Paste username">
                                 <span class="material-icons">content_paste</span>
@@ -1117,7 +1117,6 @@
                             </button>
                         </div>
                     </div>
-                    <div class="pending-count" id="pendingCount">0 pending</div>
                 </div>
                 <ul class="task-list" id="taskList"></ul>
             </div>
@@ -1745,7 +1744,8 @@
 
                 const li = document.createElement('li');
                 li.className = `task-item ${item.checked ? 'hidden' : ''}`;
-                li.dataset.id = item.id; // Store the database ID in the DOM
+                li.dataset.id = item.id;
+                li.dataset.username = item.username; // Add username as data attribute
 
                 const taskContent = document.createElement('div');
                 taskContent.className = 'task-content';
@@ -1767,15 +1767,6 @@
                 const actions = document.createElement('div');
                 actions.className = 'actions';
 
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'action-btn';
-                copyBtn.title = 'Copy';
-                copyBtn.innerHTML = '<span class="material-icons">content_copy</span>';
-                copyBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    copyUsername(item.username, copyBtn);
-                };
-
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'action-btn';
                 deleteBtn.title = 'Delete';
@@ -1785,20 +1776,19 @@
                     deleteUsername(item.id); // Pass the ID instead of index
                 };
 
-                actions.appendChild(copyBtn);
                 actions.appendChild(deleteBtn);
 
                 li.appendChild(taskContent);
                 li.appendChild(actions);
 
                 li.onclick = () => {
-                    copyUsername(item.username, copyBtn);
+                    copyUsername(item.username);
                 };
 
                 taskList.appendChild(li);
             });
 
-            pendingCount.textContent = `${pending} pending`;
+            pendingCount.textContent = pending > 0 ? `(${pending}) ` : '';
         }
 
         function showSystemNotification(title, message) {
@@ -1852,15 +1842,6 @@
                 const actions = document.createElement('div');
                 actions.className = 'response-actions';
 
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'response-btn';
-                copyBtn.title = 'Copy';
-                copyBtn.innerHTML = '<span class="material-icons">content_copy</span>';
-                copyBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    copyResponse(message, copyBtn);
-                };
-
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'response-btn';
                 deleteBtn.title = 'Delete';
@@ -1870,48 +1851,42 @@
                     deleteResponse(index);
                 };
 
-                actions.appendChild(copyBtn);
                 actions.appendChild(deleteBtn);
 
                 li.appendChild(responseContent);
                 li.appendChild(actions);
 
                 li.onclick = () => {
-                    copyResponse(message, copyBtn);
+                    copyResponse(message);
                 };
 
                 responsesList.appendChild(li);
             });
         }
 
-        function copyUsername(username, button) {
+        function copyUsername(username) {
             navigator.clipboard.writeText(username);
-            const icon = button.querySelector('.material-icons');
-            const item = button.closest('.task-item');
-            icon.textContent = 'check';
-            button.classList.add('copied');
-            item.classList.add('copied');
-
-            setTimeout(() => {
-                icon.textContent = 'content_copy';
-                button.classList.remove('copied');
-                item.classList.remove('copied');
-            }, 1500);
+            const item = document.querySelector(`.task-item[data-username="${username}"]`);
+            if (item) {
+                item.classList.add('copied');
+                setTimeout(() => {
+                    item.classList.remove('copied');
+                }, 1500);
+            }
+            showNotification('Username copied');
         }
 
-        function copyResponse(message, button) {
+        function copyResponse(message) {
             navigator.clipboard.writeText(message);
-            const icon = button.querySelector('.material-icons');
-            const item = button.closest('.response-item');
-            icon.textContent = 'check';
-            button.classList.add('copied');
-            item.classList.add('copied');
-
-            setTimeout(() => {
-                icon.textContent = 'content_copy';
-                button.classList.remove('copied');
-                item.classList.remove('copied');
-            }, 1500);
+            const items = document.querySelectorAll('.response-item');
+            const item = Array.from(items).find(el => el.querySelector('.response-content').textContent === message);
+            if (item) {
+                item.classList.add('copied');
+                setTimeout(() => {
+                    item.classList.remove('copied');
+                }, 1500);
+            }
+            showNotification('Response copied');
         }
 
         // Handle messages from the worker
