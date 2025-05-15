@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#000000">
     <title>DMfy</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
@@ -38,26 +40,27 @@
         .container {
             max-width: 1600px;
             margin: 0 auto;
-            padding: 16px;
+            padding: 12px;
             display: grid;
             grid-template-columns: 400px 1fr;
-            gap: 24px;
-            height: 100vh;
+            gap: 16px;
+            height: fit-content;
+            min-height: 100vh;
             background-color: #000;
         }
 
         .left-column {
             display: flex;
             flex-direction: column;
-            gap: 24px;
-            height: calc(100vh - 32px);
+            gap: 16px;
+            height: fit-content;
         }
 
         .right-column {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 24px;
-            height: calc(100vh - 32px);
+            gap: 16px;
+            height: fit-content;
         }
 
         .responses-section {
@@ -67,15 +70,18 @@
             display: flex;
             flex-direction: column;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-            height: 100%;
+            height: fit-content;
             overflow: hidden;
         }
 
         .responses-list {
-            flex: 1;
+            max-height: 600px;
             overflow-y: auto;
             margin: 0 -24px;
             padding: 0 24px;
+            padding-bottom: 24px;
+            position: relative;
+            min-height: 200px;
         }
 
         .responses-list::-webkit-scrollbar {
@@ -109,10 +115,6 @@
 
         .response-item:hover {
             background-color: #1a1a1a;
-        }
-
-        .response-item:last-child {
-            border-bottom: none;
         }
 
         .response-item.copied {
@@ -357,7 +359,7 @@
         .stats-row {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 24px;
+            gap: 16px;
             width: 100%;
         }
 
@@ -500,14 +502,14 @@
             flex: 1;
             overflow: hidden;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-            height: 100%;
+            height: fit-content;
         }
 
         .section-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .section-header .title-group {
@@ -659,7 +661,7 @@
         .input-section {
             display: flex;
             gap: 8px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         input {
@@ -711,27 +713,46 @@
         }
 
         .task-list {
-            flex: 1;
+            max-height: 600px;
             overflow-y: auto;
             margin: 0 -24px;
             padding: 0 24px;
+            padding-bottom: 24px;
+            position: relative;
+            min-height: 200px;
         }
 
-        .task-list::-webkit-scrollbar {
-            width: 8px;
+        .empty-state {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            color: #666;
+            text-align: center;
         }
 
-        .task-list::-webkit-scrollbar-track {
-            background: #111;
+        .empty-state .material-icons {
+            font-size: 48px;
+            opacity: 0.5;
         }
 
-        .task-list::-webkit-scrollbar-thumb {
-            background: #333;
-            border-radius: 4px;
+        .empty-state-text {
+            font-size: 14px;
+            font-weight: 500;
         }
 
-        .task-list::-webkit-scrollbar-thumb:hover {
-            background: #444;
+        .responses-list {
+            max-height: 600px;
+            overflow-y: auto;
+            margin: 0 -24px;
+            padding: 0 24px;
+            padding-bottom: 24px;
+            position: relative;
+            min-height: 200px;
         }
 
         .task-item {
@@ -1737,56 +1758,68 @@
             });
 
             let pending = 0;
-            sortedUsernames.forEach((item) => {
-                if (!item.checked) {
-                    pending++;
-                }
+            const pendingUsernames = sortedUsernames.filter(item => !item.checked);
 
-                const li = document.createElement('li');
-                li.className = `task-item ${item.checked ? 'hidden' : ''}`;
-                li.dataset.id = item.id;
-                li.dataset.username = item.username; // Add username as data attribute
+            if (pendingUsernames.length === 0) {
+                const emptyState = document.createElement('div');
+                emptyState.className = 'empty-state';
+                emptyState.innerHTML = `
+                    <span class="material-icons">inbox</span>
+                    <span class="empty-state-text">No pending items</span>
+                `;
+                taskList.appendChild(emptyState);
+            } else {
+                sortedUsernames.forEach((item) => {
+                    if (!item.checked) {
+                        pending++;
+                    }
 
-                const taskContent = document.createElement('div');
-                taskContent.className = 'task-content';
+                    const li = document.createElement('li');
+                    li.className = `task-item ${item.checked ? 'hidden' : ''}`;
+                    li.dataset.id = item.id;
+                    li.dataset.username = item.username;
 
-                const checkbox = document.createElement('div');
-                checkbox.className = `checkbox ${item.checked ? 'checked' : ''}`;
-                checkbox.onclick = (e) => {
-                    e.stopPropagation();
-                    toggleCheck(item.id); // Pass the ID instead of index
-                };
+                    const taskContent = document.createElement('div');
+                    taskContent.className = 'task-content';
 
-                const username = document.createElement('span');
-                username.className = `username ${item.checked ? 'completed' : ''}`;
-                username.textContent = `@${item.username}`;
+                    const checkbox = document.createElement('div');
+                    checkbox.className = `checkbox ${item.checked ? 'checked' : ''}`;
+                    checkbox.onclick = (e) => {
+                        e.stopPropagation();
+                        toggleCheck(item.id);
+                    };
 
-                taskContent.appendChild(checkbox);
-                taskContent.appendChild(username);
+                    const username = document.createElement('span');
+                    username.className = `username ${item.checked ? 'completed' : ''}`;
+                    username.textContent = `@${item.username}`;
 
-                const actions = document.createElement('div');
-                actions.className = 'actions';
+                    taskContent.appendChild(checkbox);
+                    taskContent.appendChild(username);
 
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'action-btn';
-                deleteBtn.title = 'Delete';
-                deleteBtn.innerHTML = '<span class="material-icons">delete</span>';
-                deleteBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    deleteUsername(item.id); // Pass the ID instead of index
-                };
+                    const actions = document.createElement('div');
+                    actions.className = 'actions';
 
-                actions.appendChild(deleteBtn);
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'action-btn';
+                    deleteBtn.title = 'Delete';
+                    deleteBtn.innerHTML = '<span class="material-icons">delete</span>';
+                    deleteBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        deleteUsername(item.id);
+                    };
 
-                li.appendChild(taskContent);
-                li.appendChild(actions);
+                    actions.appendChild(deleteBtn);
 
-                li.onclick = () => {
-                    copyUsername(item.username);
-                };
+                    li.appendChild(taskContent);
+                    li.appendChild(actions);
 
-                taskList.appendChild(li);
-            });
+                    li.onclick = () => {
+                        copyUsername(item.username);
+                    };
+
+                    taskList.appendChild(li);
+                });
+            }
 
             pendingCount.textContent = pending > 0 ? `(${pending}) ` : '';
         }
@@ -1830,6 +1863,17 @@
         function renderResponses() {
             const responsesList = document.getElementById('responsesList');
             responsesList.innerHTML = '';
+
+            if (responses.length === 0) {
+                const emptyState = document.createElement('div');
+                emptyState.className = 'empty-state';
+                emptyState.innerHTML = `
+                    <span class="material-icons">chat</span>
+                    <span class="empty-state-text">No responses</span>
+                `;
+                responsesList.appendChild(emptyState);
+                return;
+            }
 
             responses.forEach((message, index) => {
                 const li = document.createElement('li');
