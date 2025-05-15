@@ -510,8 +510,49 @@
             margin-bottom: 16px;
         }
 
-        .section-header h1 {
+        .section-header .title-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-header h1,
+        .section-header h2 {
             margin-bottom: 0;
+            margin-right: 8px;
+        }
+
+        .section-header .action-buttons {
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .responses-section:hover .action-buttons,
+        .main-section:hover .action-buttons {
+            opacity: 1;
+        }
+
+        .section-header .action-btn {
+            background: none;
+            border: none;
+            color: #1DA1F2;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .section-header .action-btn:hover {
+            background-color: rgba(29, 161, 242, 0.1);
+        }
+
+        .section-header .action-btn .material-icons {
+            font-size: 16px;
         }
 
         .pending-count {
@@ -1042,40 +1083,41 @@
         <div class="right-column">
             <div class="responses-section">
                 <div class="section-header">
-                    <h2>Saved Responses</h2>
-                </div>
-                <div class="input-section">
-                    <input type="text" id="responseInput" placeholder="Enter response" autocomplete="off">
-                    <button id="addResponseButton" onclick="addResponse()" disabled>Add</button>
-                    <button class="secondary-button export" onclick="exportResponses()" title="Export responses">
-                        <span class="material-icons">download</span>
-                    </button>
-                    <button class="secondary-button import" onclick="openImportResponsesModal()"
-                        title="Import responses">
-                        <span class="material-icons">upload</span>
-                    </button>
+                    <div class="title-group">
+                        <h2>Responses</h2>
+                        <div class="action-buttons">
+                            <button class="action-btn" onclick="pasteResponse()" title="Paste response">
+                                <span class="material-icons">content_paste</span>
+                            </button>
+                            <button class="action-btn" onclick="exportResponses()" title="Export responses">
+                                <span class="material-icons">download</span>
+                            </button>
+                            <button class="action-btn" onclick="openImportResponsesModal()" title="Import responses">
+                                <span class="material-icons">upload</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <ul class="responses-list" id="responsesList"></ul>
             </div>
             <div class="main-section">
                 <div class="section-header">
-                    <h1>Pending</h1>
+                    <div class="title-group">
+                        <h1>Pending</h1>
+                        <div class="action-buttons">
+                            <button class="action-btn" onclick="pasteUsername()" title="Paste username">
+                                <span class="material-icons">content_paste</span>
+                            </button>
+                            <button class="action-btn" onclick="exportPendingUsernames()"
+                                title="Export pending usernames">
+                                <span class="material-icons">download</span>
+                            </button>
+                            <button class="action-btn" onclick="openImportUsernamesModal()" title="Import usernames">
+                                <span class="material-icons">upload</span>
+                            </button>
+                        </div>
+                    </div>
                     <div class="pending-count" id="pendingCount">0 pending</div>
-                </div>
-                <div class="input-section">
-                    <input type="text" id="usernameInput" placeholder="Enter Twitter username" autocomplete="off">
-                    <button id="addButton" onclick="addUsername()" disabled>Add</button>
-                    <button id="pasteButton" onclick="pasteUsername()" class="secondary-button" title="Paste username">
-                        <span class="material-icons">content_paste</span>
-                    </button>
-                    <button class="secondary-button export" onclick="exportPendingUsernames()"
-                        title="Export pending usernames">
-                        <span class="material-icons">download</span>
-                    </button>
-                    <button class="secondary-button import" onclick="openImportUsernamesModal()"
-                        title="Import usernames">
-                        <span class="material-icons">upload</span>
-                    </button>
                 </div>
                 <ul class="task-list" id="taskList"></ul>
             </div>
@@ -1163,6 +1205,35 @@
         let totalDmsCount = 0;
         let weeklyData = Array(7).fill(0);
         let isProcessing = false;
+
+        async function pasteUsername() {
+            try {
+                const text = await navigator.clipboard.readText();
+                const cleanUsername = text.trim().replace(/^@/, '');
+                if (cleanUsername) {
+                    const existing = await db.usernames.where('username').equals(cleanUsername).first();
+                    if (existing) {
+                        showNotification('Username already exists');
+                        return;
+                    }
+
+                    const newUsername = {
+                        username: cleanUsername,
+                        checked: false,
+                        completedAt: null
+                    };
+
+                    const id = await db.usernames.add(newUsername);
+                    newUsername.id = id;
+                    usernames.unshift(newUsername);
+                    renderTasks();
+                    showNotification('Username added');
+                }
+            } catch (error) {
+                console.error('Error pasting username:', error);
+                showNotification('Failed to read clipboard');
+            }
+        }
 
         // Initialize circles and chart
         const circle = document.querySelector('.timer-section .progress');
@@ -1359,8 +1430,6 @@
                 updateDMCount();
                 renderTasks();
                 renderResponses();
-                updateAddButton();
-                updateAddResponseButton();
             } catch (error) {
                 console.error('Error loading data:', error);
                 showNotification('Error loading data');
@@ -1381,35 +1450,6 @@
             } catch (error) {
                 console.error('Error saving usernames:', error);
                 showNotification('Error saving usernames');
-            }
-        }
-
-        async function addUsername() {
-            const input = document.getElementById('usernameInput');
-            let username = input.value.trim();
-
-            if (username.startsWith('@')) {
-                username = username.substring(1);
-            }
-
-            if (username) {
-                const existing = await db.usernames.where('username').equals(username).first();
-                if (existing) {
-                    showNotification('Username already exists');
-                    return;
-                }
-
-                const newUsername = {
-                    username: username,
-                    checked: false,
-                    completedAt: null
-                };
-
-                await db.usernames.add(newUsername);
-                usernames.unshift(newUsername);
-                renderTasks();
-                input.value = '';
-                updateAddButton();
             }
         }
 
@@ -1512,7 +1552,6 @@
                 responses.unshift(message);
                 renderResponses();
                 input.value = '';
-                updateAddResponseButton();
             }
         }
 
@@ -1687,13 +1726,6 @@
             }
         }
 
-        function updateAddButton() {
-            const input = document.getElementById('usernameInput');
-            const addButton = document.getElementById('addButton');
-            const username = input.value.trim();
-            addButton.disabled = !username;
-        }
-
         function renderTasks() {
             const taskList = document.getElementById('taskList');
             const pendingCount = document.getElementById('pendingCount');
@@ -1852,39 +1884,122 @@
             });
         }
 
-        function updateAddResponseButton() {
-            const input = document.getElementById('responseInput');
-            const addButton = document.getElementById('addResponseButton');
-            const message = input.value.trim();
-            addButton.disabled = !message;
+        function copyUsername(username, button) {
+            navigator.clipboard.writeText(username);
+            const icon = button.querySelector('.material-icons');
+            const item = button.closest('.task-item');
+            icon.textContent = 'check';
+            button.classList.add('copied');
+            item.classList.add('copied');
+
+            setTimeout(() => {
+                icon.textContent = 'content_copy';
+                button.classList.remove('copied');
+                item.classList.remove('copied');
+            }, 1500);
         }
 
-        async function pasteUsername() {
-            const input = document.getElementById('usernameInput');
+        function copyResponse(message, button) {
+            navigator.clipboard.writeText(message);
+            const icon = button.querySelector('.material-icons');
+            const item = button.closest('.response-item');
+            icon.textContent = 'check';
+            button.classList.add('copied');
+            item.classList.add('copied');
+
+            setTimeout(() => {
+                icon.textContent = 'content_copy';
+                button.classList.remove('copied');
+                item.classList.remove('copied');
+            }, 1500);
+        }
+
+        // Handle messages from the worker
+        if (timerWorker) {
+            timerWorker.onmessage = function (e) {
+                switch (e.data.type) {
+                    case 'TIMER_UPDATE':
+                        timeLeft = e.data.timeLeft;
+                        updateTimerDisplay();
+                        break;
+                    case 'TIMER_COMPLETE':
+                        document.title = 'DMfy'; // Reset title when timer ends
+                        showSystemNotification('Time is up!', 'Go send some DMs!');
+                        break;
+                }
+            };
+
+            timerWorker.onerror = function (error) {
+                console.error('Timer worker error:', error);
+                showNotification('Timer error occurred');
+            };
+        }
+
+        // Clean up worker when page is unloaded
+        window.addEventListener('beforeunload', () => {
+            if (timerWorker) {
+                timerWorker.terminate();
+            }
+        });
+
+        async function exportPendingUsernames() {
+            try {
+                const pendingUsernames = usernames
+                    .filter(u => !u.checked)
+                    .sort((a, b) => b.id - a.id); // Sort by ID (newer IDs are higher)
+
+                if (pendingUsernames.length === 0) {
+                    showNotification('No pending usernames to export');
+                    return;
+                }
+
+                const text = pendingUsernames.map(u => u.username).join('\n');
+                await navigator.clipboard.writeText(text);
+                showNotification('Pending usernames copied to clipboard');
+            } catch (error) {
+                console.error('Error copying usernames:', error);
+                showNotification('Error copying usernames');
+            }
+        }
+
+        async function exportResponses() {
+            try {
+                const responses = await db.responses
+                    .orderBy('createdAt')
+                    .reverse()
+                    .toArray();
+                const text = responses.map(r => r.message).join('\n');
+                await navigator.clipboard.writeText(text);
+                showNotification('Responses copied to clipboard');
+            } catch (error) {
+                console.error('Error copying responses:', error);
+                showNotification('Error copying responses');
+            }
+        }
+
+        async function pasteResponse() {
             try {
                 const text = await navigator.clipboard.readText();
-                const cleanUsername = text.trim().replace(/^@/, '');
-                if (cleanUsername) {
-                    const existing = await db.usernames.where('username').equals(cleanUsername).first();
+                const message = text.trim();
+                if (message) {
+                    const existing = await db.responses.where('message').equals(message).first();
                     if (existing) {
-                        showNotification('Username already exists');
+                        showNotification('Response already exists');
                         return;
                     }
 
-                    const newUsername = {
-                        username: cleanUsername,
-                        checked: false,
-                        completedAt: null
+                    const newResponse = {
+                        message,
+                        createdAt: new Date().toISOString()
                     };
 
-                    await db.usernames.add(newUsername);
-                    usernames.unshift(newUsername);
-                    renderTasks();
-                    input.value = '';
-                    updateAddButton();
+                    await db.responses.add(newResponse);
+                    responses.unshift(message);
+                    renderResponses();
+                    showNotification('Response added');
                 }
             } catch (error) {
-                console.error('Error pasting username:', error);
+                console.error('Error pasting response:', error);
                 showNotification('Failed to read clipboard');
             }
         }
@@ -2008,154 +2123,13 @@
         updateDMCount();
         renderTasks();
         renderResponses();
-        updateAddButton();
-        updateAddResponseButton();
 
         // Add event listeners
-        const usernameInput = document.getElementById('usernameInput');
-        const responseInput = document.getElementById('responseInput');
-        const addResponseButton = document.getElementById('addResponseButton');
-
-        usernameInput.addEventListener('input', updateAddButton);
-        usernameInput.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter' && this.value.trim()) {
-                e.preventDefault();
-                addUsername();
-            }
-        });
-
-        usernameInput.addEventListener('paste', async function (e) {
-            e.preventDefault();
-            try {
-                const pastedText = e.clipboardData.getData('text');
-                const cleanUsername = pastedText.trim().replace(/^@/, '');
-                if (cleanUsername) {
-                    const existing = await db.usernames.where('username').equals(cleanUsername).first();
-                    if (existing) {
-                        showNotification('Username already exists');
-                        return;
-                    }
-
-                    const newUsername = {
-                        username: cleanUsername,
-                        checked: false,
-                        completedAt: null
-                    };
-
-                    await db.usernames.add(newUsername);
-                    usernames.unshift(newUsername);
-                    renderTasks();
-                    this.value = '';
-                    updateAddButton();
-                }
-            } catch (error) {
-                console.error('Error pasting username:', error);
-                showNotification('Failed to paste username');
-            }
-        });
-
-        responseInput.addEventListener('input', updateAddResponseButton);
-        responseInput.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter' && this.value.trim()) {
-                e.preventDefault();
-                addResponse();
-            }
-        });
-
-        addResponseButton.addEventListener('click', addResponse);
-
-        function copyUsername(username, button) {
-            navigator.clipboard.writeText(username);
-            const icon = button.querySelector('.material-icons');
-            const item = button.closest('.task-item');
-            icon.textContent = 'check';
-            button.classList.add('copied');
-            item.classList.add('copied');
-
-            setTimeout(() => {
-                icon.textContent = 'content_copy';
-                button.classList.remove('copied');
-                item.classList.remove('copied');
-            }, 1500);
-        }
-
-        function copyResponse(message, button) {
-            navigator.clipboard.writeText(message);
-            const icon = button.querySelector('.material-icons');
-            const item = button.closest('.response-item');
-            icon.textContent = 'check';
-            button.classList.add('copied');
-            item.classList.add('copied');
-
-            setTimeout(() => {
-                icon.textContent = 'content_copy';
-                button.classList.remove('copied');
-                item.classList.remove('copied');
-            }, 1500);
-        }
-
-        // Handle messages from the worker
-        if (timerWorker) {
-            timerWorker.onmessage = function (e) {
-                switch (e.data.type) {
-                    case 'TIMER_UPDATE':
-                        timeLeft = e.data.timeLeft;
-                        updateTimerDisplay();
-                        break;
-                    case 'TIMER_COMPLETE':
-                        document.title = 'DMfy'; // Reset title when timer ends
-                        showSystemNotification('Time is up!', 'Go send some DMs!');
-                        break;
-                }
-            };
-
-            timerWorker.onerror = function (error) {
-                console.error('Timer worker error:', error);
-                showNotification('Timer error occurred');
-            };
-        }
-
-        // Clean up worker when page is unloaded
         window.addEventListener('beforeunload', () => {
             if (timerWorker) {
                 timerWorker.terminate();
             }
         });
-
-        async function exportPendingUsernames() {
-            try {
-                const pendingUsernames = usernames
-                    .filter(u => !u.checked)
-                    .sort((a, b) => b.id - a.id); // Sort by ID (newer IDs are higher)
-
-                if (pendingUsernames.length === 0) {
-                    showNotification('No pending usernames to export');
-                    return;
-                }
-
-                const text = pendingUsernames.map(u => u.username).join('\n');
-                await navigator.clipboard.writeText(text);
-                showNotification('Pending usernames copied to clipboard');
-            } catch (error) {
-                console.error('Error copying usernames:', error);
-                showNotification('Error copying usernames');
-            }
-        }
-
-        async function exportResponses() {
-            try {
-                const responses = await db.responses
-                    .orderBy('createdAt')
-                    .reverse()
-                    .toArray();
-                const text = responses.map(r => r.message).join('\n');
-                await navigator.clipboard.writeText(text);
-                showNotification('Responses copied to clipboard');
-            } catch (error) {
-                console.error('Error copying responses:', error);
-                showNotification('Error copying responses');
-            }
-        }
     </script>
 </body>
 
