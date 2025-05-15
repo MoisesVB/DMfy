@@ -54,8 +54,8 @@
         }
 
         .right-column {
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 24px;
             height: calc(100vh - 32px);
         }
@@ -67,7 +67,7 @@
             display: flex;
             flex-direction: column;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-            height: 40%;
+            height: 100%;
             overflow: hidden;
         }
 
@@ -500,7 +500,7 @@
             flex: 1;
             overflow: hidden;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-            height: 60%;
+            height: 100%;
         }
 
         .section-header {
@@ -1081,25 +1081,6 @@
             </div>
         </div>
         <div class="right-column">
-            <div class="responses-section">
-                <div class="section-header">
-                    <div class="title-group">
-                        <h2>Responses</h2>
-                        <div class="action-buttons">
-                            <button class="action-btn" onclick="pasteResponse()" title="Paste response">
-                                <span class="material-icons">content_paste</span>
-                            </button>
-                            <button class="action-btn" onclick="exportResponses()" title="Export responses">
-                                <span class="material-icons">download</span>
-                            </button>
-                            <button class="action-btn" onclick="openImportResponsesModal()" title="Import responses">
-                                <span class="material-icons">upload</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <ul class="responses-list" id="responsesList"></ul>
-            </div>
             <div class="main-section">
                 <div class="section-header">
                     <div class="title-group">
@@ -1119,6 +1100,25 @@
                     </div>
                 </div>
                 <ul class="task-list" id="taskList"></ul>
+            </div>
+            <div class="responses-section">
+                <div class="section-header">
+                    <div class="title-group">
+                        <h2>Responses</h2>
+                        <div class="action-buttons">
+                            <button class="action-btn" onclick="pasteResponse()" title="Paste response">
+                                <span class="material-icons">content_paste</span>
+                            </button>
+                            <button class="action-btn" onclick="exportResponses()" title="Export responses">
+                                <span class="material-icons">download</span>
+                            </button>
+                            <button class="action-btn" onclick="openImportResponsesModal()" title="Import responses">
+                                <span class="material-icons">upload</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <ul class="responses-list" id="responsesList"></ul>
             </div>
         </div>
     </div>
