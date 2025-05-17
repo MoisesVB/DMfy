@@ -1814,7 +1814,8 @@
                     li.appendChild(actions);
 
                     li.onclick = () => {
-                        copyUsername(item.username);
+                        const url = `https://x.com/${item.username}`;
+                        window.open(url, '_blank', 'noopener,noreferrer');
                     };
 
                     taskList.appendChild(li);
