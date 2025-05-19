@@ -14,7 +14,7 @@
     <script>
         const db = new Dexie('DMfyDB');
         db.version(1).stores({
-            usernames: '++id, username, checked, completedAt',
+            usernames: '++id, username, checked, completedAt, deleted',
             responses: '++id, message, createdAt',
             settings: 'id, value',
             weeklyStats: '++id, date, count'
@@ -1240,7 +1240,8 @@
                     const newUsername = {
                         username: cleanUsername,
                         checked: false,
-                        completedAt: null
+                        completedAt: null,
+                        deleted: false
                     };
 
                     const id = await db.usernames.add(newUsername);
@@ -1540,10 +1541,21 @@
 
         async function deleteUsername(id) {
             try {
-                await db.usernames.delete(id);
-                const index = usernames.findIndex(u => u.id === id);
-                if (index !== -1) {
-                    usernames.splice(index, 1);
+                const username = usernames.find(u => u.id === id);
+                if (username) {
+                    // Mark as deleted but keep in database
+                    await db.usernames.update(id, {
+                        deleted: true,
+                        checked: false,
+                        completedAt: null
+                    });
+                    // Update local array
+                    const index = usernames.findIndex(u => u.id === id);
+                    if (index !== -1) {
+                        usernames[index].deleted = true;
+                        usernames[index].checked = false;
+                        usernames[index].completedAt = null;
+                    }
                 }
                 renderTasks();
             } catch (error) {
@@ -1758,7 +1770,7 @@
             });
 
             let pending = 0;
-            const pendingUsernames = sortedUsernames.filter(item => !item.checked);
+            const pendingUsernames = sortedUsernames.filter(item => !item.checked && !item.deleted);
 
             if (pendingUsernames.length === 0) {
                 const emptyState = document.createElement('div');
@@ -1770,12 +1782,12 @@
                 taskList.appendChild(emptyState);
             } else {
                 sortedUsernames.forEach((item) => {
-                    if (!item.checked) {
+                    if (!item.checked && !item.deleted) {
                         pending++;
                     }
 
                     const li = document.createElement('li');
-                    li.className = `task-item ${item.checked ? 'hidden' : ''}`;
+                    li.className = `task-item ${item.checked || item.deleted ? 'hidden' : ''}`;
                     li.dataset.id = item.id;
                     li.dataset.username = item.username;
 
